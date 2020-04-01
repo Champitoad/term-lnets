@@ -1,0 +1,1634 @@
+\documentclass[12pt]{report}
+
+\usepackage{polyglossia}
+\usepackage[top=2.5cm, bottom=2.5cm, left=3cm, right=3cm]{geometry}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{unicode-math}
+\usepackage{bm}
+\usepackage{prftree}
+\usepackage{graphicx}
+\usepackage{pmboxdraw}
+\usepackage{lscape}
+\usepackage{makecell}
+\usepackage{longtable}
+\usepackage{tabu}
+\usepackage{multirow}
+\usepackage{pifont}
+\usepackage{cmll}
+\usepackage{titlesec}
+\usepackage{xfrac}
+\usepackage{mathpartir}
+\usepackage{pn}
+\usepackage{float}
+\usepackage{tikz-cd}
+
+\prflineextra=0em
+\prflinepadbefore=0.5ex
+\prflinepadafter=0.5ex
+\prfrulenameskip=0.5em
+
+\tabulinesep=0.5em
+\tabcolsep=0.5em
+\allowdisplaybreaks
+
+\AtBeginDocument{% to do this after unicode-math has done its work
+  \renewcommand{\setminus}{\mathbin{\backslash}}
+}
+\renewcommand{\b}[1]{\overline{#1}}
+
+\newcommand{\lto}{\Rightarrow}
+\newcommand{\lequiv}{\Leftrightarrow}
+\newcommand{\dai}{✠}
+\newcommand{\seq}{\vdash}
+\newcommand{\irule}[1]{\vspace*{-10em}\footnotesize$#1$}
+\newcommand{\iruleL}[1]{\irule{{#1}\seq}}
+\newcommand{\iruleR}[1]{\irule{\seq{#1}}}
+
+\newcommand{\cutbar}{\mathbin{\|}}
+
+\newcommand{\freevars}[1]{\mathsf{fv}(#1)}
+\newcommand{\subst}[3]{#1\left[#2 \mathbin{/} #3\right]}
+
+\newcommand{\cutred}{\rightsquigarrow}
+
+\newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{remark}{Remark}
+
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries}{}{0pt}{\huge}
+
+\begin{document}
+
+\pagenumbering{gobble}
+\begin{center}
+    \newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+
+    \includegraphics[scale=0.1]{img/logo-paris7.jpg}
+    \vspace{1.5cm}
+
+    \textsc{\LARGE Rapport de TRE}\\[0.5cm]
+    {Master 1 Informatique}\\
+    {Spécialité Recherche}\\[0.5cm]
+    {Encadrant : Alexis Saurin}\\[1cm]
+
+    \HRule \\[1.0cm]
+    {\huge\bf Towards a term syntax for L-nets}\\[0.5cm]
+    % {\huge\bf An algebraic presentation of L-nets}\\[0.5cm]
+    \HRule \\[1.8cm]
+
+    {\Large Pablo DONATO}\\[2.5cm]
+
+    {\large \today}
+\end{center}
+
+\clearpage
+\pagenumbering{arabic}
+\thispagestyle{empty}
+\null
+\newpage
+
+\begin{abstract}
+    We present a novel term syntax for boxed paraproof nets of multiplicative linear logic, allowing
+    for a linear, uniform representation of paraproofs with partial sequentiality.\\
+
+    We start by explaining the relationship between maximally and minimally sequential
+    representations of proofs, namely sequent calculus proofs and proof nets. It appears natural in
+    this setting to generalize results to a wider class of objects that includes "erroneous" proofs,
+    called paraproofs.\\
+
+    Next we introduce term syntaxes for both representations, inspired respectively by the c-designs
+    of K. Terui, and the algebraic presentation of differential interaction nets of D. Mazza. We
+    relate the two syntaxes through a two-step desequentialization procedure, where paraproofs are
+    first translated into totally sequential paraproof nets sharing the same computational behavior.
+    This is made possible by augmenting paraproof nets with a box construct similar to those used
+    traditionally to encode exponentials. Desequentialization then proceeds by simply removing
+    boxes, offering fine-grained control over the degree of sequentiality of the intermediate
+    paraproof nets.\\
+
+    We conclude by sketching a natural generalization of our syntax to L-nets, a game model of
+    concurrent computation that can itself be seen as a generalization of paraproof nets.
+\end{abstract}
+
+\tableofcontents
+
+\chapter*{Introduction}
+\addcontentsline{toc}{chapter}{Introduction}
+
+% Linear logic is a substructural logic that was discovered by J.-Y. Girard through an analysis of the
+% semantics of System F, an extension of the $\lambda$-calculus which formalizes the notion of
+% parametric polymorphism in programming languages. From its inception, Linear logic has indeed been
+% rooted in the Curry-Howard isomorphism,
+
+Since its discovery in the 80s by J.-Y. Girard, linear logic has been rooted in the Curry-Howard
+isomorphism, which gives a precise correspondance between proofs (logic) and programs (computation).
+In his seminal paper \cite{Gir87}, Girard already noted that a certain notion of \emph{parallel}
+computation can be found in the meaning of the connectives of linear logic, especially in the
+so-called \emph{multiplicative} fragment.
+
+More recently, L-nets have been introduced by C. Faggian and F. Maurel \cite{FM05} as a game model
+of concurrent interaction, inspired by a close inspection of the computational behavior of two
+structures arising in the proof theory of linear logic: \emph{proof nets} and \emph{designs}.
+
+Proof nets are a more economic presentation of the proofs of linear logic, abstracting away from
+"irrelevant" permutations of inferences that can be found in the standard sequent calculus
+presentation of proofs. One big advantage of proof nets is that their cut elimination procedure is
+\emph{confluent}. From the computational perspective, it means that the "execution" of a proof net
+will always give the same result, regardless of the path of computation that has been choosen.
+However, the feature of proof nets that motivated the creation of L-nets is really the
+\emph{parallelism} mentioned earlier, that results from forgetting the order of permutable
+inferences. A novelty of L-nets is that they allow to \emph{partially} recover (or forget) this
+sequentiality, a behavior that will be mimicked by the box construct introduced in section
+\ref{sec:paraproof-net-terms}.
+
+Designs on the other hand are the main objects of \emph{ludics}, a theory developed by J.-Y. Girard
+and intended as an \emph{interactive} account of the foundations of logic. Designs can be seen as
+\emph{abstract} proofs of linear logic, where formulae are replaced by their \emph{occurrences},
+retaining only the sub-formula relation. A fundamental aspect of ludics is the presence of the
+\emph{daimon rule} $\mathsf{\dai}$, which has the static meaning of a generalized axiom that can
+prove any (set of occurrences of) formulae. Therefore it introduces many "incorrect" proofs (called
+\emph{paraproofs}) if we still think in terms of formulae. The interactive nature of ludics then
+lies in the possibility of characterizing proofs of a formula $A$ as those paraproofs that
+\emph{react} the same way when confronted to paraproofs of $A^\bot$ (which exist thanks to $\dai$!).
+This is the essence of the counter-proofs criterion introduced in section \ref{sec:paraproofs}.
+% However, the true meaning of $\dai$ is to be found in its dynamic, where it represents termination
+% of one branch of the computation.
+The main purpose of L-nets is to bring the parallelism of proof nets to the abstract, interactive
+setting of ludics and designs.
+
+~\\
+The paper will proceed as follows: we first introduce in section \ref{sec:sequential-proofs} a
+focalized sequent calculus of multiplicative only linear logic, that captures the (correct) proofs
+which are fully sequential\footnote{It should be noted that the term \emph{sequent} has (at least
+historically) no connection with the \emph{sequentiality} of proofs we are interested in.}. Then we
+explain in section \ref{sec:parallel-proofs} how forgetting the order of permutable inferences leads
+to a graph-theoretical formulation of proof nets, that can precisely be characterized either as the
+desequentialization of sequent calculus proofs, or as those graph structures which can be
+sequentialized into sequent calculus proofs. We present in section \ref{sec:paraproofs} the
+\emph{counter-proofs} criterion, one of many \emph{correctness} criterions that give an alternative
+way of capturing the sequentializable proof structures. The appeal of this particular criterion is
+that it gives some insight into the interactive computation mechanism underlying L-nets, by
+generalizing proofs into paraproofs with the introduction of the daimon $\dai$.
+
+Sections \ref{sec:paraproof-terms} and \ref{sec:paraproof-net-terms} introduce novel term syntaxes
+for (respectively) sequent calculus paraproofs and paraproof structures, together with computational
+apparatuses in the form of cut reductions. The first syntax is just a specialization of the
+\emph{computational designs} of K. Terui \cite{Ter11}, making yet closer the connection with L-nets.
+The second one is strongly inspired by the algebraic presentation of differential interaction nets
+of D. Mazza \cite{Maz16}, which is quite close in spirit to process algebras such as the
+$π$-calculus. Section \ref{sec:desequentialization-of-terms} defines a two-step
+desequentialization procedure relating the two syntaxes, where paraproofs are first translated into
+totally sequential paraproof nets sharing the same computational behavior. This is made possible by
+augmenting paraproof nets with a box construct similar to those used traditionally to encode
+exponentials. We then sketch a proof that the term syntaxes and desequentialization are correct,
+both from a static (with respect to the graphical syntaxes) and a dynamic (with respect to
+cut-elimination) point of view.
+
+We conclude by explaining how our syntax could be extended to L-nets, notably by including the
+additive connectives of linear logic. We also give a list of future work that would be necessary for
+further ensuring the correctness of our syntax, as well as translating the results on L-nets in this
+new setting.
+
+% \chapter{$\mathsf{MLL}$ sequent calculus}
+\chapter{Sequential proofs}
+\label{sec:sequential-proofs}
+
+In this section, we present a fully sequential and focalized proof system for $\mathsf{MLL}$, which
+is the multiplicative, unit-free fragment of linear logic.
+
+\section{A focalized sequent calculus for $\mathsf{MLL}$}
+
+For the reader unacquainted with proof theory and sequent calculus, we start with a few standard
+definitions:
+
+\begin{definition}
+    We call \emph{sequent} an expression $\seq Γ$, where $Γ$ is a finite sequence
+    of formulae.
+\end{definition}
+
+Sequents were introduced by G. Gentzen (1934) in his sequent calculi for classical and
+intuitionistic logic, and are now the most standard way of formulating proof systems for many
+logics. To build them, we need a syntax for formulae, given here by the following grammar:
+
+\begin{align*}
+    P &::= X ∣ N \otimes N ∣ \shpos N \\
+    N &::= X^\bot ∣ P \parr P ∣ \shneg P \\
+\end{align*}
+
+Formulae built with the rules $P$ and $N$ are respectively qualified as \emph{positive} and
+\emph{negative}, hence we say that the syntax is \emph{polarized}. We can see that they are built
+out of \emph{propositional atoms} $X$ and $X^\bot$\footnote{Where $X$ denotes any atom in a given
+countable set.}, and put together with the binary connectives of \emph{multiplicative conjunction}
+$\otimes$ (spelled "tensor") and \emph{multiplicative disjunction} $\parr$ (spelled "parr").
+Notice also how the grammar generates only formulae that are an alternation of positive and negative
+layers of sub-formulae: this is one way to enforce a \emph{focalized} proof system, that is a system
+where proofs are made of an alternation of rules acting on positive and negative formulae. The unary
+connectives $\shpos$ and $\shneg$ are called \emph{shifts}, and serve as a mean to change the
+polarity of a formula. Focalized systems have been proved to be equivalent to unfocalized ones in
+terms of provability (see e.g. \cite{And92}), and will allow us to get closer to the syntax of
+designs and L-nets, which are also focalized.\\
+
+Now that we have sequents, we want to prove them by composing \emph{instances} of \emph{inference
+rules}:
+
+\begin{definition}
+    An \emph{inference rule} $r$ is given by a set $\sigma_1, \ldots, \sigma_n$ of sequents called
+    \emph{premisses}, and a sequent $\sigma$ called \emph{conclusion}. It has the following
+    graphical presentation:
+    \begin{mathpar}
+        \prftree[r]{\irule{$r$}}
+            {\sigma_1}
+            {\ldots}
+            {\sigma_n}
+            {\sigma}
+    \end{mathpar}
+    Sequents of a rule generally contain \emph{propositional metavariables} $P, P_1, P_2, \ldots$ (resp.
+    $N, N_1, N_2, \ldots$) ranging over positive (resp. negative) formulae. An \emph{instance} of
+    the rule $r$ is $r$ where every occurrence of propositional metavariable has been replaced by an
+    occurrence of concrete formula built out of atoms. We will often omit the "instance" part and
+    confound rules with their instances.
+\end{definition}
+
+Before presenting the rules of our calculus, we need one last notion which is that of
+\emph{negation} (or \emph{dual}):
+
+\begin{definition}
+    The \emph{negation} $P^\bot$ of a positive formula $P$ is defined inductively as:
+    \begin{align*}
+        (X)^\bot &= X^\bot \\
+        (N_1 \otimes N_2)^\bot &= N_1^\bot \parr N_2^\bot \\
+        (\shpos N)^\bot &= \shneg N^\bot
+    \end{align*}
+    with the negation $N^\bot$ of a negative formula $N$ defined inductively as:
+    \begin{align*}
+        (X^\bot)^\bot &= X \\
+        (P_1 \parr P_2)^\bot &= P_1^\bot \otimes P_2^\bot \\
+        (\shneg P)^\bot &= \shpos P^\bot
+    \end{align*}
+\end{definition}
+
+Negation in linear logic is most often presented as an involutive function on formulae that relates
+dual connectives through De Morgan equations, rather than as a separate connective. For our purpose,
+this will enforce the idea of interaction between (para)proofs of $A$ and $A^\bot$ introduced in
+section \ref{sec:paraproofs}.\\
+
+The rules of sequent calculi are generally divided into three groups: identity, structural and
+logical. Since we want our system to be focalized, we restrict contexts $Γ, Δ, Σ, \ldots$ to
+positive formulae, so that the following \emph{focalization property} will hold:
+
+\begin{proposition}[Focalization Property]
+    If a sequent is provable, then it contains at most one negative formula. Sequents with no
+    (resp. one) negative formula are said to be \emph{positive} (resp. \emph{negative}).
+\end{proposition}
+
+The \emph{identity} group comprises the two following rules:
+
+\begin{mathpar}
+    \prfbyaxiom{\irule{\mathrm{ax}}}{\seq P^\bot, P}
+    \and
+    \prftree[r]{\irule{\mathrm{cut}}}
+        {\seq P^\bot, Γ}
+        {\seq P, Δ}
+        {\seq Γ, Δ}
+\end{mathpar}
+With these two rules, we can already build (trivial) proofs, which are just trees of rules whose
+root is the rule which has the proved sequent as conclusion, and whose nodes (resp. leaves) are
+instances of the cut (resp. ax) rule. As is standard with sequents, the ax rule will be the only
+axiom (that is the only kind of proof tree leaf) of the calculus, with other rules acting as nodes
+in the proof tree. The identity group is really the common kernel of every sequent calculus, with
+possibly some variants on the axiom, where for example one can restrict formulae to the atomic
+case\footnote{This corresponds to the process of $\eta$-expansion in $\lambda$-calculi.}. However,
+we \emph{do} want here to allow any formula, since it induces the existence of more proofs, and
+therefore more computational expressivity\footnote{This will really matter when switching to the
+more expressive setting of paraproofs/L-nets.}.
+
+One specificity of linear logic is to be found in the absence of two usual \emph{structural} rules,
+called \emph{weakening} and \emph{contraction}. We will not go into too much details here since
+these two rules are only of interest when studying the exponential fragment of linear logic. Hence
+our structural group will only comprise the following \emph{exchange} rule, which just serves as a
+mean to abstract away from the order of formulae inside sequents:
+
+\begin{mathpar}
+    \prftree[r]{\irule{X}}{\seq Γ, A, B, Δ}{\seq Γ, B, A, Δ}
+\end{mathpar}
+where at most one formula among $A$ and $B$ is negative.
+
+Then finally comes the \emph{logical} group, whose purpose is to build proofs of compound formulae
+from proofs of their direct sub-formulae. There is therefore one rule for each connective:
+
+\begin{mathpar}
+    \prftree[r]{\irule{\otimes}}
+        {\seq N_1, Γ}
+        {\seq N_2, Δ}
+        {\seq N_1 \otimes N_2, Γ, Δ}
+    \and
+    \prftree[r]{\irule{\parr}}
+        {\seq P_1, P_2, Γ}
+        {\seq P_1 \parr P_2, Γ}
+    \\
+    \prftree[r]{\irule{\shpos}}
+        {\seq N, Γ}
+        {\seq \shpos N, Γ}
+    \and
+    \prftree[r]{\irule{\shneg}}
+        {\seq P, Γ}
+        {\seq \shneg P, Γ}
+\end{mathpar}
+
+We can see in the rules for shifts how they only act as a way to change the polarity of a formula,
+so that any formula in an unpolarized syntax can be turned into a formula in the polarized syntax by
+introducing shifts in the right places, and then proved with these rules.
+
+\begin{remark}\label{rem:parr-shifts}
+For example, it is possible thanks to the $\parr$ rule to turn every sequent $\seq A_1, \ldots, A_n$
+into a one-formula sequent $\seq A'_1 \parr \ldots \parr A'_n$ where $A'_i$ is $A_i$ if $A_i$ is
+positive, $\shpos A_i$ otherwise, and this without losing provability.
+% It thus appears that the meaning of $\parr$ is to put formulae together without touching the
+% context, while the meaning of $\otimes$ is to put together the contexts of distinct subproofs.
+\end{remark}
+
+\section{Cut elimination}
+
+Through the Curry-Howard isomorphism, proof systems can be seen as formalisms to write well-typed
+programs. Formulae correspond to types, while inference rules correspond to typing rules specifying
+when program constructs are well-typed. More crucially, one should be able in this view to
+\emph{compute} with proofs, in the same way that programs (well-typed or not) can be evaluated. In
+sequent calculus, the way to evaluate proofs is through the \emph{cut elimination} procedure. The
+idea is to eliminate all instances of the cut rule, by iterating a set of rewriting steps on proofs
+called \emph{cut reduction}. We can distinguish two different kinds of cut reduction steps (in the
+following, $A$ denotes the active cut formula, that is the formula that disappears together with its
+dual from both premisses of the cut rule):
+
+\begin{figure}
+    \begin{align}
+        \vcenter{
+        \prftree[r]{\irule{\mathrm{cut}}}
+            {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq P^\bot, P}}
+            {\prfsummary[$π$]{\seq P, Γ}}
+            {\seq P, Γ}
+        }
+        \quad &\rightsquigarrow_π \quad
+        \vcenter{
+        \prfsummary[$π$]{\seq P, Γ}
+        }
+        \label{eqn:keycase-seq-ax}
+        \\[20pt]
+        \vcenter{
+        \prftree[r]{\irule{\mathrm{cut}}}
+            {\prftree[r]{\irule{\parr}}
+                {\prfsummary[$π_1$]{\seq P_1, P_2, Γ}}
+                {\seq P_1 \parr P_2, Γ}}
+            {\prftree[r]{\irule{\otimes}}
+                {\prfsummary[$π_2$]{\seq P_1^\bot, Δ}}
+                {\prfsummary[$π_3$]{\seq P_2^\bot, Σ}}
+                {\seq P_1^\bot \otimes P_2^\bot, Δ, Σ}}
+            {\seq Γ, Δ, Σ}
+        }
+        \quad &\rightsquigarrow_π \quad
+        \vcenter{
+        \prftree[r]{\irule{\mathrm{cut}}}
+            {\prftree[r]{\irule{\mathrm{cut}}}
+                {\prfsummary[$π_1$]{\seq P_1, P_2, Γ}}
+                {\prfsummary[$π_2$]{\seq P_1^\bot, Δ}}
+                {\seq P_2, Γ, Δ}}
+            {\prfsummary[$π_3$]{\seq P_2^\bot, Σ}}
+            {\seq Γ, Δ, Σ}
+        }
+        \label{eqn:keycase-seq-tensor}
+        \\[0pt]
+        \vcenter{
+        \prftree[r]{\irule{\mathrm{cut}}}
+            {\prftree[r]{\irule{\shneg}}
+                {\prfsummary[$π_1$]{\seq P, Γ}}
+                {\seq \shneg P, Γ}}
+            {\prftree[r]{\irule{\shpos}}
+                {\prfsummary[$π_2$]{\seq P^\bot, Δ}}
+                {\seq \shpos P^\bot, Δ}}
+            {\seq Γ, Δ}
+        }
+        \quad &\rightsquigarrow_π \quad
+        \vcenter{
+        \prftree[r]{\irule{\mathrm{cut}}}
+            {\prfsummary[$π_1$]{\seq P, Γ}}
+            {\prfsummary[$π_2$]{\seq P^\bot, Δ}}
+            {\seq Γ, Δ}
+        }
+        \label{eqn:keycase-seq-shift}
+    \end{align}
+    \caption[]{Key cases of cut reduction $\rightsquigarrow_π$ on sequent calculus proofs}
+    \label{def:keycases-seq}
+\end{figure}
+
+\begin{itemize}
+    \item The \textbf{key cases} (figure~\ref{def:keycases-seq}) occur either when one premiss of
+        the cut is an axiom, or when the two premisses last rules introduce $A$ and $A^\bot$. In the
+        first case, we simply erase the cut and the axiom to only keep the proof of the remaining
+        premiss (step \ref{eqn:keycase-seq-ax}). In the second case, the cut as well as the
+        premisses last rules are replaced by cuts on the direct sub-formulae of $A$ (steps
+        \ref{eqn:keycase-seq-tensor}, \ref{eqn:keycase-seq-shift}).
+    \item The \textbf{commutative cases} occur when no key case
+    % \item The \textbf{commutative cases} (figure~\ref{def:commcases-seq}) occur when no key case
+        matches the cut rule, that is when either one of the premisses does not introduce $A$ or
+        $A^\bot$. The idea is then to descend the cut into sub-proofs by "swapping" it with the last
+        rule of the premiss at fault, which will eventually lead to a key case.
+        
+        % Because of the focalization property, the premiss at fault is necessary the positive one,
+        % since the negative premiss must introduce $A^\bot$. To keep the invariant of having one
+        % positive premiss and one negative premiss for each cut instance, it might also be necessary
+        % to introduce additional shifts on some formulae, as is the case in the reduction step
+        % \ref{eqn:commcase-seq-tensor} for $\otimes$. It means that commutative cases can change the
+        % conclusion of a proof, but only by adding trivial shifts that can be removed after cut
+        % elimination without changing provability.
+\end{itemize}
+
+With an adequate measure on proofs, it can be shown that every cut reduction step decreases the
+given measure, and therefore that cut elimination terminates. It means that every proof that
+contains cuts can be evaluated into a cut-free proof. However, despite the simplicity of our
+calculus, cut elimination is not \emph{confluent}. This can be observed with the following
+proofs\footnote{To simplify the example, we forget here about polarities, shifts and focalization.}:
+
+\begin{mathpar}
+    \tilde{π} = \left\{~
+    \vcenter{
+    \prftree[r]{\irule{\mathrm{cut}}}
+        {\prftree[r]{\irule{\otimes}}
+            {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq A, A^\bot}}
+            {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq A, A^\bot}}
+            {\seq A \otimes A, A^\bot, A^\bot}}
+        {\prftree[r]{\irule{\otimes}}
+            {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq A, A^\bot}}
+            {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq A, A^\bot}}
+            {\seq A^\bot \otimes A^\bot, A, A}}
+        {\seq A \otimes A, A^\bot \otimes A^\bot, A^\bot, A}
+    }\right.
+    \\
+    π = \left\{~
+    \vcenter{
+    \prftree[r]{\irule{\otimes}}
+        {\prftree[r]{\irule{\otimes}}
+            {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq A, A^\bot}}
+            {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq A, A^\bot}}
+            {\seq A^\bot \otimes A^\bot, A, A}}
+        {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq A, A^\bot}}
+        {\seq A \otimes A, A^\bot \otimes A^\bot, A^\bot, A}
+    }\right.
+    \and
+    π' = \left\{~
+    \vcenter{
+    \prftree[r]{\irule{\otimes}}
+        {\prftree[r]{\irule{\otimes}}
+            {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq A, A^\bot}}
+            {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq A, A^\bot}}
+            {\seq A \otimes A, A^\bot, A^\bot}}
+        {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq A, A^\bot}}
+        {\seq A \otimes A, A^\bot \otimes A^\bot, A^\bot, A}
+    }\right.
+\end{mathpar}
+
+Indeed, we have that $\tilde{π}$ can be evaluated both to $π$ and $π'$ depending on which cut
+reduction steps are choosen, and both $π$ and $π'$ cannot be reduced further since they are
+cut-free. Also, notice how $π$ and $π'$ only differ by permutation of the two $\otimes$ rules:
+this suggests that this kind of permutation might be the root of the non-confluence of cut
+elimination.
+% This is what we will show in the next section.
+
+% \begin{figure}
+%     \begin{align}
+%         \vcenter{
+%         \prftree[r]{\irule{\mathrm{cut}}}
+%             {\prfsummary[$π_1$]{\seq P^\bot, Γ}}
+%             {\prftree[r]{\irule{\otimes}}
+%                 {\prfsummary[$π_2$]{\seq P, N_1, Δ}}
+%                 {\prfsummary[$π_3$]{\seq N_2, Σ}}
+%                 {\seq P, N_1 \otimes N_2, Δ, Σ}}
+%             {\seq N_1 \otimes N_2, Γ, Δ, Σ}
+%         }
+%         \quad &\rightsquigarrow \quad
+%         \vcenter{
+%         \prftree[r]{\irule{\otimes}}
+%             {\prftree[r]{\irule{\shneg}}
+%                 {\prftree[r]{\irule{\mathrm{cut}}}
+%                     {\prfsummary[$π_1$]{\seq P^\bot, Γ}}
+%                     {\prftree[r]{\irule{\shpos}}
+%                         {\prfsummary[$π_2$]{\seq P, N_1, Δ}}
+%                         {\seq P, \shpos N_1, Δ}}
+%                     {\seq \shpos N_1, Γ, Δ}}
+%                 {\seq \shneg \shpos N_1, Γ, Δ}}
+%             {\prfsummary[$π_3$]{\seq N_2, Σ}}
+%             {\seq \shneg \shpos N_1 \otimes N_2, Γ, Δ, Σ}
+%         }
+%         \label{eqn:commcase-seq-tensor}
+%         \\[20pt]
+%         \vcenter{
+%         \prftree[r]{\irule{\mathrm{cut}}}
+%             {\prfsummary[$π_1$]{\seq P^\bot, Γ}}
+%             {\prftree[r]{\irule{\shpos}}
+%                 {\prfsummary[$π_2$]{\seq P, N, Δ}}
+%                 {\seq P, \shpos N, Δ}}
+%             {\seq \shpos N, Γ, Δ}
+%         }
+%         \quad &\rightsquigarrow \quad
+%         \vcenter{
+%         \prftree[r]{\irule{\otimes}}
+%             {\prftree[r]{\irule{\shneg}}
+%                 {\prftree[r]{\irule{\mathrm{cut}}}
+%                     {\prfsummary[$π_1$]{\seq P^\bot, Γ}}
+%                     {\prftree[r]{\irule{\shpos}}
+%                         {\prfsummary[$π_2$]{\seq P, N_1, Δ}}
+%                         {\seq P, \shpos N_1, Δ}}
+%                     {\seq \shpos N_1, Γ, Δ}}
+%                 {\seq \shneg \shpos N_1, Γ, Δ}}
+%             {\prfsummary[$π_3$]{\seq N_2, Σ}}
+%             {\seq \shneg \shpos N_1 \otimes N_2, Γ, Δ, Σ}
+%         }
+%         \label{eqn:commcase-seq-shift}
+%     \end{align}
+%     \caption[]{Commutative cases of cut reduction on sequent calculus proofs}
+%     \label{def:commcases-seq}
+% \end{figure}
+
+% \chapter{$\mathsf{MLL}$ proof nets}
+\chapter{Parallel proofs}
+\label{sec:parallel-proofs}
+
+At the end of the previous section, we saw how the total sequentiality of proofs creates artificial
+orderings on some inferences, discriminating proofs that only differ up to permutation of these,
+even though they are equivalent from the computational perspective of cut elimination. To recover a
+kind of "canonicity" in the representation of proofs, we would therefore like to remove this
+artificial sequentiality. Since it cannot be done with fully sequential objects such as the proof
+\emph{trees} of sequent calculus, a natural alternative that still has a nice graphical presentation
+would be \emph{graphs}.
+
+\section{Proof structures}
+
+We now give the definition of \emph{proof structures}, which are indeed a
+graph-theoretical "parallel syntax" for proofs:
+
+\begin{definition}
+    A \emph{focalized proof structure} for $\mathsf{MLL}$ is a finite directed graph whose nodes
+    are labelled either by logical connectives ($\otimes,\parr,\shpos,\shneg$), \emph{ax},
+    \emph{cut}, or \emph{c} (for \emph{conclusion}), and whose edges are labelled by formulae.
+    Furthermore, each label $l$ has an associated arity $(p_l, c_l)$, meaning that every node
+    labelled with $l$ must have exactly $p_l$ ingoing edges and $c_l$ outgoing edges (the letters
+    $p$ and $c$ stand respectively for \emph{premisses} and \emph{conclusions}). Arities are given
+    by the following table: ~\\
+    \begin{center}
+    \begin{tabu}{|c|c|c|c|c|c|c|c|}
+        \hline
+        \rowfont{\normalfont} {\bf Label} & ax & cut & $\otimes$ & $\parr$ & $\shpos$ & $\shneg$ & c \\
+        \hline
+        {\normalfont\bf Arity} & $(0,2)$ & $(2,0)$ & $(2,1)$ & $(2,1)$ & $(1,1)$ & $(1,1)$ & $(1,0)$ \\
+        \hline
+    \end{tabu}
+    \end{center}
+    ~\\
+    In particular, nodes labelled by connectives will have one conclusion, which must be labelled by
+    the formula built out of their premisses with the given connective. Also, the two edges
+    associated to \emph{ax} and \emph{cut} nodes must be labelled by dual formulae. To enforce
+    focalization, we add the two following conditions:
+    \begin{itemize}
+        \item premisses of nodes labelled with a connective must be of the opposite polarity of that
+        connective;
+        \item the set of conclusion nodes must contain at most one node with a negative premiss.
+    \end{itemize}
+\end{definition}
+
+Since the textual definition is a bit heavy, we directly give the \emph{desequentialization}
+function $\mathsf{deseq}_π$ (figure~\ref{def:deseq-seq}) that maps sequent calculus proofs to the
+associated proof structures. This should already give a good intuition of the kind of proof
+structures that can be constructed, and how they relate to sequential proofs.
+
+\begin{figure}[h]
+    \begin{displaymath}
+        \setcellgapes{8pt}
+        \makegapedcells
+        \begin{array}{r@{\qquad \mapsto \qquad}l}
+            %%% ax %%%
+            \makecell[r]{\prfbyaxiom{\irule{\mathrm{ax}}}{\seq P^\bot, P}}
+            &
+            \pnet{
+                \pnformulae{
+                    \pnf[nP]{$P^\bot$}~~\pnf[P]{$P$}}
+                \pnaxiom{nP,P}}
+            \\
+            %%% cut %%%
+            \vcenter{
+            \prftree[r]{\irule{\mathrm{cut}}}
+                {\prfsummary[$π_1$]{\seq P^\bot, Γ}}
+                {\prfsummary[$π_2$]{\seq P, Δ}}
+                {\seq Γ, Δ}
+            }
+            &
+            \makecell[l]{
+            \pnet{
+                \pnsomenet[R1]{\scriptsize$\mathsf{deseq}_π(π_1)$}{3cm}{1cm}
+                \pnsomenet[R2]{\scriptsize$\mathsf{deseq}_π(π_2)$}{3cm}{1cm}[at (4,0)]
+                \pnoutfrom{R1.-140}{Γ}
+                \pnoutfrom{R1.-40}[nP]{$P^\bot$}
+                \pnoutfrom{R2.-140}[P]{$P$}
+                \pnoutfrom{R2.-40}{Δ}
+                \pncut{nP,P}}
+            }
+            \\
+            %%% tensor %%%
+            \vcenter{
+            \prftree[r]{\irule{\otimes}}
+                {\prfsummary[$π_1$]{\seq N_1, Γ}}
+                {\prfsummary[$π_2$]{\seq N_2, Δ}}
+                {\seq N_1 \otimes N_2, Γ, Δ}
+            }
+            &
+            \makecell[l]{
+            \pnet{
+                \pnsomenet[R1]{\scriptsize$\mathsf{deseq}_π(π_1)$}{3cm}{1cm}
+                \pnsomenet[R2]{\scriptsize$\mathsf{deseq}_π(π_2)$}{3cm}{1cm}[at (4,0)]
+                \pnoutfrom{R1.-140}{Γ}
+                \pnoutfrom{R1.-40}[N1]{$N_1$}
+                \pnoutfrom{R2.-140}[N2]{$N_2$}
+                \pnoutfrom{R2.-40}{Δ}
+                \pntensor{N1,N2}{$N_1 \otimes N_2$}}
+            }
+            \\
+            %%% parr %%%
+            \vcenter{
+            \prftree[r]{\irule{\parr}}
+                {\prfsummary[$π$]{\seq P_1, P_2, Γ}}
+                {\seq P_1 \parr P_2, Γ}
+            }
+            &
+            \makecell[l]{
+            \pnet{
+                \pnsomenet[R]{\scriptsize$\mathsf{deseq}_π(π)$}{3cm}{1cm}
+                \pnoutfrom{R.-150}{Γ}
+                \pnoutfrom{R.-90}[P1]{$P_1$}
+                \pnoutfrom{R.-30}[P2]{$P_2$}
+                \pnparr{P1,P2}{$P_1 \parr P_2$}}
+            }
+            \\
+            %%% positive shift %%%
+            \vcenter{
+            \prftree[r]{\irule{\shpos}}
+                {\prfsummary[$π$]{\seq N, Γ}}
+                {\seq \shpos N, Γ}
+            }
+            &
+            \makecell[l]{
+            \pnet{
+                \pnsomenet[R]{\scriptsize$\mathsf{deseq}_π(π)$}{3cm}{1cm}
+                \pnoutfrom{R.-140}{Γ}
+                \pnoutfrom{R.-40}[N]{$N$}
+                \pnshpos{N}{$\shpos N$}}
+            }
+            \\
+            %% negative shift %%%
+            \vcenter{
+            \prftree[r]{\irule{\shneg}}
+                {\prfsummary[$π$]{\seq P, Γ}}
+                {\seq \shneg P, Γ}
+            }
+            &
+            \makecell[l]{
+            \pnet{
+                \pnsomenet[R]{\scriptsize$\mathsf{deseq}_π(π)$}{3cm}{1cm}
+                \pnoutfrom{R.-140}{Γ}
+                \pnoutfrom{R.-40}[P]{$P$}
+                \pnshneg{P}{$\shneg P$}}
+            }
+            \\
+        \end{array}
+    \end{displaymath}
+    Inside proof structures, $Γ, Δ$ denote sets of conclusion nodes with premisses labelled by the
+    formulae in $Γ,Δ$. Also, we have not actually drawn conclusion nodes to improve readability.
+    \caption[]{Desequentialization $\mathsf{deseq}_π$ from $\mathsf{MLL}$ proofs to $\mathsf{MLL}$ proof structures}
+    \label{def:deseq-seq}
+\end{figure}
+
+\section{Proof nets}
+
+Since the proof structures obtained by desequentialization come from sequent calculus proofs, there
+is no doubt that they are \emph{correct} proofs. In fact, desequentialization is one way to define
+\emph{proof nets}, which are precisely those proof structures that correspond to at least one
+sequent calculus proof. Our goal being to identify sequential proofs that differ only by
+non-significant permutations of inferences, there will generally be \emph{many} such proofs
+associated to a single proof net.
+
+Now, a natural question is : are all proof structures proof nets? The following examples show that
+it is \emph{not} the case:
+\vspace{-2.5em}
+\begin{mathpar}
+    \mathfrak{S}_1 =
+    \pnet{
+        \pnformulae{
+            \pnf[nP]{$P^\bot$}~~\pnf[P]{$P$}
+        }
+        \pnaxiom{nP,P}
+        \pncut{nP,P}
+    }
+    \and
+    % \pnet{
+    %     \pnformulae{
+    %         \pnf[nP]{$P^\bot$}~~\pnf[P]{$P$}
+    %     }
+    %     \pnaxiom{nP,P}
+    %     \pnshneg{P}{}
+    %     \pntensor{nP,shneg}{}
+    % }
+    \and
+    \mathfrak{S}_2 =
+    \pnet{
+        \pnformulae{
+            \pnf[nP1]{$P^\bot$}~~\pnf[P1]{$P$}~~\pnf[nP2]{$P^\bot$}~~\pnf[P2]{$P$}
+        }
+        \pnaxiom{nP1,P1}
+        \pnaxiom{nP2,P2}
+        \pnshpos{nP1}[shpos1]{}
+        \pnshpos{nP2}[shpos2]{}
+        \pnparr{shpos1,shpos2}[parr1]{}[1][-0.5]
+        \pnparr{P1,P2}[parr2]{}[2.2][0.5]
+        \pntensor{parr1,parr2}{}
+        % \pnshpos[shpos1]{nP1}{$\shpos P^\bot$}
+        % \pnshpos[shpos2]{nP2}{$\shpos P^\bot$}
+        % \pnparr[parr1]{shpos1,shpos2}{$\shpos P^\bot \parr \shpos P^\bot$}
+        % \pnparr[parr2]{P1,P2}{$P \parr P$}
+        % \pntensor{parr1,parr2}{$(\shpos p^\bot \parr \shpos p^\bot) \otimes (p \parr p)$}
+    }
+    \and
+    \mathfrak{S}_3 =
+    \pnet{
+        \pnformulae{
+            \pnf[nP1]{$P^\bot$}~~\pnf[P1]{$P$}~~\pnf[P2]{$P$}~~\pnf[nP2]{$P^\bot$}
+        }
+        \pnaxiom{nP1,P1}
+        \pnaxiom{P2,nP2}
+        \pnparr{P1,P2}[parr2]{}
+    }
+\end{mathpar}
+Indeed, they would correspond to the following "ill-formed" sequent calculus proofs:
+\begin{mathpar}
+    \prftree[r]{\irule{\mathrm{cut}}}
+        {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq P^\bot, P}}
+        {\seq}
+    \and
+    % \prftree[r]{\irule{\otimes}}
+    %     {\prftree[r]{\irule{\shneg}}
+    %         {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq P^\bot, P}}
+    %         {\seq P^\bot, \shneg P}}
+    %     {\seq P^\bot \otimes \shneg P}
+    % \and
+    \prftree[r]{\irule{\otimes}}
+        {\prftree[r]{\irule{\parr}}
+            {\prftree[r]{\irule{\parr}}
+                {\prftree[r]{\irule{\shpos}}
+                    {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq P^\bot, P}}
+                    {\seq \shpos P^\bot, P}}
+                {\prftree[r]{\irule{\shpos}}
+                    {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq P^\bot, P}}
+                    {\seq \shpos P^\bot, P}}
+                {\seq \shpos P^\bot \parr \shpos P^\bot, P, P}}
+            {\seq \shpos P^\bot \parr \shpos P^\bot, P \parr P}}
+        {\seq (\shpos P^\bot \parr \shpos P^\bot) \otimes (P \parr P)}
+    \and
+    \prftree[r]{\irule{\parr}}
+        {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq P^\bot, P}}
+        {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq P^\bot, P}}
+        {\seq P \parr P, P^\bot, P^\bot}
+\end{mathpar}
+$\mathfrak{S}_1$ is known as the "vicious circle", and exploits the fact that a proof structure can
+have no conclusion. This corresponds to proving the empty sequent, which is impossible since the
+only way to do this would be with a (well-formed) cut, which contradicts the fact that every sequent
+has a cut-free proof thanks to cut elimination. We also see through examples $\mathfrak{S}_2$ and
+$\mathfrak{S}_3$ how proof structures do not make any distinction between $\otimes$ and $\parr$
+(apart from their polarity).
+
+\section{Correctness}
+
+Currently, the only way we have to check that a proof structure $\mathfrak{S}$ is indeed a proof net
+is by having an associated sequent calculus proof $π$, and by verifying that
+$\mathsf{deseq}_π(π) = \mathfrak{S}$. It would be much more satisfactory to have a way of
+checking the correctness of a proof structure that is completely independant from the sequential
+syntax of sequent calculus. This is what \emph{correctness criterions} are for: they allow to
+characterize sequentializable proof structures on the basis of their geometrical/topological
+properties. In this section, we give an explanation of the first criterion that was devised for
+proof nets: the \textbf{DR criterion} (named after its inventors, Danos and Régnier). First we
+need to define the notion of \emph{switching}:
+
+\begin{definition}
+    A \emph{switching} $s$ on a proof structure $\mathfrak{S}$ is a function from the set of
+    $\parr$-nodes of $\mathfrak{S}$ to $\{0,1\}$. The \emph{switching graph} induced by $s$ is
+    $\mathfrak{S}$ where every $\parr$-node $n$ has one of its premisses erased: the left one if
+    $s(n) = 0$, the right one otherwise.
+\end{definition}
+
+The DR criterion is then stated as follows:
+
+\begin{definition}
+    A paraproof structure $\mathfrak{S}$ satisfies the DR criterion if all of its switching graphs
+    are trees, that is they are connected and acyclic.
+\end{definition}
+
+The criterion might seem quite surprising at first, especially since it has seemingly no connection
+with the desequentialization procedure. Its meaning will become more apparent when related to the
+counterproofs criterion, to be introduced in the next section. Let's try to apply it to the three
+examples above:
+
+\begin{itemize}
+    \item $\mathfrak{S}_1$ is trivially incorrect, since it is the simplest cycle one can build, and
+    it does not contain any $\parr$-node.
+    \item $\mathfrak{S}_2$ is a more subtle example of violation of the acyclicity condition:
+    indeed, all of the 4 switching graphs are connected, and only 2 of them actually contains a
+    cycle (those in which both left/right premisses have been erased).
+    \item $\mathfrak{S}_3$ shows how the connectedness condition is also important, and independant
+    from the acyclicity condition. It can be shown that removing it amounts to accepting the
+    \emph{mix} rule in sequent calculus:
+    $$\prftree[r]{\irule{\mathrm{mix}}}{\seq Γ}{\seq Δ}{\seq Γ, Δ}$$
+\end{itemize}
+
+To ensure that the DR criterion is actually a correctness criterion, it is necessary to prove the
+following \emph{sequentialization theorem}:
+
+\begin{theorem}[Sequentialization]
+    A proof structure satisfies the DR criterion if and only if it is the image of a sequent
+    calculus proof by the desequentialization function.
+\end{theorem}
+
+Since the proof is quite technical, we do not give it here. It could have been however of interest
+if we had tried to export the criterion to the new syntax that we devise for (para)proof structures
+in section \ref{sec:paraproof-net-terms}.
+
+% \chapter{Daimon $\dai$ and interactivity}
+\chapter{Paraproofs}
+\label{sec:paraproofs}
+
+\section{The daimon $\dai$}
+
+In this section, we present another correctness criterion called the \emph{counterproofs} criterion.
+The idea is to characterize proof nets of conclusion $A$ as those proof structures who behave well
+when confronted to their counterproofs, that is proof structures of conclusion $A^\bot$. By saying
+that, we already notice a problem: if $\seq A$ is provable, how can we have at the same time proofs
+of $\seq A^\bot$? This would refute the principle of non-contradiction, and make our logic
+inconsistent. In fact, this is exactly what we are going to do by introducing a new rule/node, the
+\emph{daimon} $\dai$:
+\vspace{-1.5em}
+\begin{mathpar}
+    \prfbyaxiom{\irule{\dai}}{\seq P_1, \ldots, P_n}
+    \and
+    \pnet{
+        \pnformulae{
+            \pnf[P1]{$P_1$}~~\pnf[ldots]{$\ldots$}~~\pnf[Pn]{$P_n$}
+        }
+        \pndaimon{P1,ldots,Pn}
+    }
+\end{mathpar}
+\vspace{1em}
+
+The daimon acts statically as a generalized axiom, allowing to prove any sequent. Since we can now
+prove both $A$ and $A^\bot$, we should not consider ourselves in a logical system in the traditional
+sense anymore. However, the new objects, that we call \emph{paraproofs}, still have the fine
+structure of proofs, and will be of even more interest from a computational point of view.
+
+\section{Cut elimination}
+
+To formulate the counterproofs criterion, we need to define cut elimination for paraproof
+structures. Indeed, the way proofs will interact with their counterproofs is by \emph{cutting} their
+dual conclusion, and evaluating the resulting paraproof structure. Cut reduction steps are defined
+in the same way than those for sequent calculus, except for the new $\dai$-node that we give in
+figure \ref{def:cutred-ps-dai}. While it acts statically as the axiom, the daimon has a very
+different computational behavior, in that it \emph{absorbs} proofs that interact with it instead of
+letting them take its place. By the way, it can be shown that cut elimination terminates and is
+confluent for (para)proof structures, either with or without the daimon. This confirms the intuition
+about permutation of inferences being the cause of non-confluence in sequent calculus.
+
+\begin{figure}[H]
+    \begin{displaymath}
+        \setcellgapes{8pt}
+        \makegapedcells
+        \begin{array}{r@{\qquad \rightsquigarrow \qquad}l}
+            \makecell[r]{
+                \pnet{
+                    \pnsomenet[R]{\scriptsize$\mathfrak{S}$}{2cm}{1cm}[at (3,1)]
+                    \pnformulae{
+                        \pnf[Γ]{Γ}~~\pnf[P]{$P$}}
+                    \pnoutfrom{R.-140}[nP]{$P^\bot$}
+                    \pnoutfrom{R.-40}[Δ]{Δ}
+                    \pndaimon{Γ,P}
+                    \pncut{P,nP}
+                }
+            }
+            &
+            \makecell[l]{
+                \pnet{
+                    \pnformulae{
+                        \pnf[Γ]{Γ}[at (1,1)]~~\pnf[Δ]{Δ}[at (1,1)]}
+                    \pndaimon{Γ,Δ}
+                }
+            }
+        \end{array}
+    \end{displaymath}
+    \caption[]{Cut reduction step for the $\dai$-node of paraproof structures}
+    \label{def:cutred-ps-dai}
+\end{figure}
+
+The idea of well-behaved interaction between two paraproofs can be captured by the notion of
+\emph{orthogonality}:
+
+\begin{definition}
+    Two paraproof structures $\mathfrak{S}$ of conclusion $A$ and $\mathfrak{S}'$ of conclusion
+    $A^\bot$ are said to be \emph{orthogonal} (written $\mathfrak{S} \perp \mathfrak{S}'$) when the
+    paraproof structure obtained by adding a cut between $A$ and $A^\bot$ evaluates to a
+    $\dai$-node.
+    % \vspace{-2.5em}
+    % \begin{mathpar}
+    %     \pnet{
+    %         \pnformulae{
+    %             \pnf[P1]{$P_1$}~~\pnf[ldots]{$\ldots$}~~\pnf[Pn]{$P_n$}~~\pnf[P1']{$P_1'$}~~\pnf[ldots']{$\ldots$}~~\pnf[Pn']{$P_n'$}
+    %         }
+    %         \pndaimon{P1,ldots,Pn,P1',ldots',Pn'}
+    %     }
+    % \end{mathpar}
+\end{definition}
+
+We can now give a precise formulation of the counterproofs criterion in terms of orthogonality:
+
+\begin{definition}
+    A proof structure $\mathfrak{S}$ of conclusion $A$ satisfies the \emph{counterproofs criterion}
+    if for every paraproof structure $\mathfrak{S}'$ of conclusion $A^\bot$, we have $\mathfrak{S}
+    \perp \mathfrak{S}'$.
+\end{definition}
+
+Notice how the counterproofs criterion relies crucially on the computational device of cut
+elimination, but this time as an \emph{interaction} between correct paraproofs and their incorrect
+counterproofs. This is really the essence of how the original designs of ludics, and therefore the
+more parallel L-nets, compute. Also, the fact that we have restricted the criterion to
+one-conclusion paraproof structures is not a problem, since every set of conclusions can be turned
+into a a single conclusion by introducing $\parr$ and shift nodes adequately (recall remark
+\ref{rem:parr-shifts}). \\
+
+To conclude this section, we shall highlight an interesting similarity between the DR and
+counterproofs criterions, which is not immediately apparent. The trick is to remark that the
+switching graphs of a paraproof structure are isomorphic to its \emph{extreme counterproofs}:
+
+\begin{definition}
+    The \emph{extreme paraproofs} are the (sequent) paraproofs obtained by restricting
+    $\otimes$-rules to the cases where one of the premisses has an empty context:
+    \begin{mathpar}
+        \prftree[r]{\irule{\otimes}}
+            {\seq N_1, Γ}
+            {\seq N_2}
+            {\seq N_1 \otimes N_2, Γ}
+        \and
+        \prftree[r]{\irule{\otimes}}
+            {\seq N_1}
+            {\seq N_2, Γ}
+            {\seq N_1 \otimes N_2, Γ}
+    \end{mathpar}
+    The \emph{extreme counterproofs} of a paraproof structure of conclusion $A$ are the paraproof
+    structures obtained by desequentialization of the extreme paraproofs of conclusion $\seq
+    A^\bot$.
+\end{definition}
+
+The DR criterion can therefore be seen as a simplified formulation of the counterproofs criterion,
+which is topologic rather than computational.
+
+\chapter{Paraproof terms}
+\label{sec:paraproof-terms}
+
+% We use the notation $\vec{x}$ to denote either lists or sets depending on the context.
+% We also write directly $x$ instead of $\{x\}$ for singleton sets.
+
+In the first three sections, we have introduced the main concepts of the proof theory of
+multiplicative linear logic. We emphasized the relationship between sequential and parallel
+representations of proofs, as well as the concept of paraproofs which turns proofs into
+computational rather than logical objects. Our goal in the next three sections will be to adapt
+these concepts to a setting more familiar to most computer scientists, which is that of \emph{term
+syntaxes}.
+
+\section{Multiplicative c-designs}
+
+In this section, we introduce sequential objects called \emph{multiplicative c-designs}, which are
+really Terui's \emph{c-designs} \cite{Ter11} specialized to the connectives of multiplicative linear
+logic with shifts\footnote{We will often drop the "multiplicative" qualifier since we do not deal
+with full c-designs.}. C-designs were introduced precisely as a "handy term syntax" for the
+sequential designs of ludics, with the notable difference that they incorporate explicit identities
+(axioms) and cuts, while the original designs are identity and cut-free. This allows for a lot more
+computational power: in fact, Terui shows that the original designs capture exactly the regular
+languages, while c-designs can express arbitrary sets of finite data. Multiplicative c-designs are
+defined \emph{co-inductively} by the following grammar:
+
+% \footnote{We also have
+% considered using an infinitary signature with names for every arity of the connectives to be closer
+% to the setting of L-nets, but this would have required a reformulation of the standard presentation
+% of sequent calculus paraproofs and paraproof nets for $\mathsf{MLL}$, which is based on binary
+% connectives.}
+
+\begin{figure}[H]
+    \begin{align*}
+        P &::= \dai(\vec{x}) ∣ Ω ∣ N_0 \cutbar \otimes(N_1, N_2) ∣ N_0 \cutbar \shpos(N_1) \\
+        N &::= x ∣ \parr(x_1, x_2).P ∣ \shneg(x).P
+    \end{align*}
+    \caption[]{Definition of multiplicative c-designs $\mathcal{D}$}
+    \label{def:cdesigns}
+\end{figure}
+
+Since the definition is co-inductive, it is important to notice that c-designs can be
+\emph{infinitary}, as is the case with the designs of ludics. It entails that some (in fact many!)
+c-designs do not actually correspond to a paraproof. However, every paraproof can be expressed as a
+c-design, as shown by the translation $\mathsf{D}$ defined in figure~\ref{def:translation-D}. Proofs
+ending with a positive (resp. negative) rule are translated into positive (resp. negative)
+c-designs, where the notion of polarity for c-designs is (as for formulae) based on their
+grammar. Let's detail how the translation works:
+\begin{itemize}
+    \item The base cases are pretty straight-forward: the $\dai$ rule has a corresponding $\dai$
+    term, and axioms are translated like in $\lambda$-calculus as variables. We have added to the
+    original definition of c-designs the variables $\vec{x}$ captured by the $\dai$ term, which
+    correspond to the occurences of positive formulae introduced by the $\dai$ rule\footnote{The
+    only purpose of these variables is to carry information about the conclusions of $\dai$ when
+    translating c-designs to the term syntax that we devise for paraproof nets in section
+    \ref{sec:paraproof-net-terms}.}. Notice how every occurrence of positive formulae is forgotten
+    and replaced by a variable: c-designs are indeed untyped objects, and the fact that logical
+    connectives appear in their syntax is just to make the correspondance with proofs more visible. 
+    \item Negative proofs $π$ are translated as terms $a(\vec{x}).P$, where $P$ is the translation
+    of $π$'s direct subproof, $a$ is the connective of $π$'s last rule ($\parr$ or $\shneg$),
+    and the variables $\vec{x}$ correspond to the direct subformulae of the formula introduced by
+    the rule. $a(\vec{x})$ is called a \emph{negative action}, and acts as a \emph{binder} for
+    $\vec{x}$ in $P$, in the same way that $\lambda x.M$ would bind $x$ in $M$ in
+    $\lambda$-calculus.
+    \item The tricky part of the translation is the case of the cut rule. The intuition is that a
+    cut between a negative proof $π_0$ and a positive proof $π$ will be translated as a positive
+    term $N_0 \cutbar \b{a}(\vec{N})$, where $N_0$ is the translation of $π_0$, $\b{a}$ is the
+    \emph{positive action} associated to the connective of $π$'s last rule ($\otimes$ or $\shpos$),
+    and $\vec{N}$ are the translations of $π$'s direct subproofs. The translation actually does this
+    in two steps: first $π$ is translated as $x \cutbar \b{a}(\vec{N})$ (with $x$ fresh), and then
+    $x$ is replaced by $N_0$ when translating the cut. Replacement is done with the
+    \emph{substitution function} defined in figure \ref{def:subst-cdesigns}, which does what we want
+    here because $x$ occurs exactly once since it is fresh.
+\end{itemize}
+
+\begin{figure}[h]
+    \begin{align*}
+        \prfbyaxiom{\irule{\dai}}{\seq x_1 : P_1, \ldots, x_n : P_n}
+        \qquad &\mapsto \qquad
+        \dai(x_1, \ldots, x_n)
+        \\
+        \prfbyaxiom{\irule{\mathrm{ax}}}{\seq P^\bot, x : P}
+        \qquad &\mapsto \qquad
+        x
+        \\
+        \prftree[r]{\irule{\mathrm{cut}}}
+            {\prfsummary[$π_1$]{\seq P^\bot, Γ}}
+            {\prfsummary[$π_2$]{\seq x : P, Δ}}
+            {\seq Γ, Δ}
+        \qquad &\mapsto \qquad
+        \subst{\mathsf{D}(π_2)}{\mathsf{D}(π_1)}{x}
+        \\
+        \prftree[r]{\irule{\shneg}}
+            {\prfsummary[$π$]{\seq x : P, Γ}}
+            {\seq \shneg P, Γ}
+        \qquad &\mapsto \qquad
+        \shneg(x).\mathsf{D}(π)
+        \\
+        \prftree[r]{\irule{\shpos}}
+            {\prfsummary[$π$]{\seq N, Γ}}
+            {\seq x : \shpos N, Γ}
+        \qquad &\mapsto \qquad
+        x \cutbar \shpos(\mathsf{D}(π))
+        \\
+        \prftree[r]{\irule{\parr}}
+            {\prfsummary[$π$]{\seq x_1 : P_1, x_2 : P_2, Γ}}
+            {\seq P_1 \parr P_2, Γ}
+        \qquad &\mapsto \qquad
+        \parr(x_1, x_2).\mathsf{D}(π)
+        \\
+        \prftree[r]{\irule{\otimes}}
+            {\prfsummary[$π_1$]{\seq N_1, Γ}}
+            {\prfsummary[$π_2$]{\seq N_2, Δ}}
+            {\seq x : N_1 \otimes N_2, Γ, Δ}
+        \qquad &\mapsto \qquad
+        x \cutbar \otimes(\mathsf{D}(π_1), \mathsf{D}(π_2))
+        \\
+    \end{align*}
+    To ease the translation, we work with $\textsf{MLL}$ paraproofs augmented with unique variables
+    associated to each occurrence of positive formula. These can be added with a simple procedure
+    that starts by associating fresh variables to the positive formulae in the conclusion, and keeps
+    track of those associations when descending into subproofs, associating fresh variables to new
+    occurrences encountered along the way.
+    \caption[]{Translation $\mathsf{D}$ from $\mathsf{MLL}$ paraproofs to multiplicative c-designs $\mathcal{D}$}
+    \label{def:translation-D}
+\end{figure}
+
+\section{Cut elimination}
+
+We now need a cut-elimination procedure to compute with our multiplicative c-designs. The procedure
+should simulate that of $\mathsf{MLL}$ paraproofs, since multiplicative c-designs are intended as a
+term syntax for them. One advantage of having a term syntax is that cut reduction is much more
+succint to express, in the same way that $\lambda$-terms only need the $\beta$-rule to compute. We
+indeed only have the three following rules:
+
+\begin{figure}[H]
+    \begin{mathpar}
+        \prfaxiom{(\parr(x_1, x_2).P) \cutbar \otimes(N_1, N_2) \cutred_{\mathcal{D}} \subst{\subst{P}{N_1}{x_1}}{N_2}{x_2}} \\
+        \prfaxiom{(\shneg(x).P) \cutbar \shpos(N) \cutred_{\mathcal{D}} \subst{P}{N}{x}} \\
+        \prftree
+            {\b{a} \not= b}
+            {(a(\vec{x}).P) \cutbar b(\vec{N}) \cutred_{\mathcal{D}} Ω}
+    \end{mathpar}
+    \caption[]{Cut reduction $\cutred_{\mathcal{D}}$ of multiplicative c-designs}
+    \label{def:cutred-cdesigns}
+\end{figure}
+
+The two first rules correspond to the two key cases for $\parr/\otimes$ and $\shneg/\shpos$ of cut
+reduction on paraproofs, and do have a striking similarity with the $\beta$-rule. The key case for
+the axiom (resp. daimon) is simulated by the base case of substitution on variables (resp. $\dai$)
+(see figure \ref{def:subst-cdesigns}). There is a little subtlety in the $\dai$ case, since it
+should be able to absorb the conclusions of the paraproof with which it is cut: this is handled by
+capturing the free variables of the corresponding c-design, since the notion of free variables of a
+c-design matches exactly that of conclusions of a paraproof. Commutative cases are handled by the
+recursive cases of substitution, and this is where the term syntax brings most simplicity.
+
+As for the third reduction rule, it has no counterpart in paraproofs since it involves a new
+c-design called Ω. It comes from ludics, and as noticed by Curien \cite{Cur05'}, has the meaning of
+non-termination of evaluation. Whereas this rule is not necessary for the original c-designs
+because of the additive superimposition $\sum_a a(\vec{x_a}).P_a$, we do need it here to handle
+"ill-formed" cuts of non-dual actions.
+
+% This information does not change the computational behavior of multiplicative c-designs compared to
+% the original ones, although it induces a little tweak in the definition of substitution
+% (figure~\ref{def:subst-cdesigns}).
+
+\begin{figure}[h]
+    \begin{align*}
+        &\freevars{\dai(\vec{x})} = \vec{x} \\
+        &\freevars{N_0 \cutbar \b{a}(N_1, \ldots, N_n)} = \bigcup_{i = 0}^n{\freevars{N_i}} \\
+        &\freevars{x} = x \\
+        &\freevars{a(\vec{x}).P} = \freevars{P} \setminus \vec{x} \\
+    \end{align*}
+    \begin{align*}
+        \subst{\dai(\vec{x})}{N}{y} &= \begin{cases}
+            \dai(\vec{x} \setminus y, \freevars{N}) & \text{if $y \in \vec{x}$} \\
+            \dai(\vec{x}) & \text{otherwise}
+        \end{cases}
+        \\
+        \subst{N_0 \cutbar \b{a}(N_1, \ldots, N_n)}{N}{y} &=
+            \subst{N_0}{N}{y} \cutbar \b{a}(\subst{N_1}{N}{y}, \ldots, \subst{N_n}{N}{y})
+        \\
+        \subst{x}{N}{y} &= \begin{cases}
+            N & \text{if $x = y$} \\
+            x & \text{otherwise}
+        \end{cases}
+        \\
+        \subst{(a(\vec{x}).P)}{N}{y} &= \begin{cases}
+            a(\vec{x}).\subst{P}{N}{y} & \text{if $y \not\in \vec{x}$ and $\vec{x} ∩ \freevars{N} = \emptyset$} \\
+            a(\vec{x}).P & \text{otherwise} \\
+        \end{cases}
+        \\
+    \end{align*}
+    \caption[]{Free variables and substitution of multiplicative c-designs}
+    \label{def:subst-cdesigns}
+\end{figure}
+
+
+\chapter{Paraproof net terms}
+\label{sec:paraproof-net-terms}
+
+\section{Paranets}
+
+In this section, we introduce partially sequential objects called \emph{paranets}, which provide a
+term syntax in the style of the $\pi$-calculus for paraproof structures. We take heavy inspiration
+from the differential interaction nets of D. Mazza \cite{Maz16}, to which we add the daimon in order
+to simulate paraproof structures, as well as a box construct which allows us to add partial
+sequentiality, so that we get as close as possible to the behavior of L-nets. We give here our
+variant of the definition of nets by Mazza, which only changes in the cells available to build
+paranets, and in the finiteness condition:
+
+% We start by defining the basic building blocks of paranets, called \emph{cells}, which are the
+% equivalent of the nodes of paraproof structures:
+
+\begin{definition}[Paranet]
+    A \emph{cell} is an expression of one of the following forms:\\[5pt]
+    {\normalfont \bf daimon:} $\dai(\vec{x})$, $\mathrm{gc}(\vec{x};\vec{y})$\\
+    {\normalfont \bf box:} $\mathrm{box}(\vec{x}; \vec{x}')$\\
+    {\normalfont \bf multiplicative cells:} $\otimes(x; y, z)$, $\parr(x; y, z)$\\
+    {\normalfont \bf shift cells:} $\shpos(x; y)$, $\shneg(x; y)$\\[5pt]
+    where $x, y, z$ range over a denumerably infinite set of \emph{ports}, and $\vec{x}, \vec{y},
+    \vec{z}$ are vectors of ports. Ports on the left of ; are the cell's \emph{conclusions}, and
+    those on the right are its \emph{premisses}.
+
+    A \emph{wire} is a multiset containing exactly 2 (not necessarily distinct) ports $x, y$, which
+    we denote by $x \leftrightarrow y$ (or $y \leftrightarrow x$).
+
+    A \emph{net} is a (possibly infinite) multiset of cells and wires in which every port appears at
+    most twice. The set of \emph{free ports} of a net $μ$, denoted by $\mathsf{fp}(μ)$, is the set
+    of ports appearing exactly once in $μ$. The ports appearing twice in a net are called
+    \emph{bound}. We identify any two nets which may be obtained one from the other by an injective
+    renaming of their bound ports (this is \emph{$α$-equivalence}).
+
+    Given two nets $μ, ν$, we denote by $μ ∣ ν$ the net obtained by renaming (using $α$-equivalence)
+    the bound ports of $μ$ and $ν$ so that the two nets have no bound name in common, and by taking
+    then the standard multiset union. The operation $∣$, called \emph{parallel composition}, is
+    obviously commutative and has the empty net, denoted by $∗$, as neutral element. It is not
+    associative in general; however, for $μ ∣ (ν ∣ ρ)$ and $(μ ∣ ν) ∣ ρ$ to be equal, it is enough
+    to suppose that $\mathsf{fp}(μ) ∩ \mathsf{fp}(ν) ∩ \mathsf{fp}(ρ) = ∅$. More generally, if $μ_1,
+    \ldots, μ_n$ are such that, for any pairwise distinct $i, j, k$, $\mathsf{fp}(μ_i) ∩
+    \mathsf{fp}(μ_j) ∩ \mathsf{fp}(μ_k) = ∅$, then the expression $μ_1 ∣ \ldots ∣ μ_n$ is not
+    ambiguous. In the sequel, we shall always assume this to be the case.
+\end{definition}
+
+\newpage
+As for multiplicative c-designs, we give a translation $\mathsf{N}$ (figure \ref{def:translation-N})
+that maps paraproof nets to paranets, which can give the reader a better intuition of what kind of
+paranets can be constructed. Of course in the same way that some c-designs do not correspond to any
+paraproof, some paranets do not correspond to any paraproof structure, one of the reasons being that
+they can also be infinite\footnote{The other reason is that as with multiplicative c-designs, it is
+possible to place a cut between two non-dual cells.}.
+
+The idea of the translation is quite simple: every node is translated as the corresponding cell,
+except for axioms and cuts which are represented by bound ports: a port that appears in two
+premisses (resp. conclusions) is an axiom (resp. a cut). Since a proof net might consist only of
+axioms, they are represented as wires, which can be erased later in cut elimination. Links between
+nodes are represented by bound ports that appear in one premiss of a cell and one conclusion of
+another cell.
+
+\begin{figure}[h]
+    \vspace{-4em}
+    \begin{displaymath}
+        \setcellgapes{4pt}
+        \makegapedcells
+        \begin{array}{r@{\qquad \mapsto \qquad}l}
+            %%% daimon %%%
+            \pnet{
+                \pnformulae{
+                    \pnf[x1]{$x_1$}~~\pnf[ldots]{$\ldots$}~~\pnf[xn]{$x_n$}
+                }
+                \pndaimon{x1,ldots,xn}}
+            &
+            \dai(x_1, \ldots, x_n)
+            \\
+            %%% ax %%%
+            \pnet{
+                \pnformulae{
+                    \pnf[nP]{$x$}~~\pnf[P]{$x'$}}
+                \pnaxiom{nP,P}}
+            &
+            x \leftrightarrow x'
+            \\
+            %%% cut %%%
+            \makecell[r]{
+            \pnet{
+                \pnsomenet[R1]{\scriptsize$\mathfrak{S}_1$}{3cm}{1cm}
+                \pnsomenet[R2]{\scriptsize$\mathfrak{S}_2$}{3cm}{1cm}[at (4,0)]
+                \pnoutfrom{R1.-140}{Γ}
+                \pnoutfrom{R1.-40}[nP]{$x$}
+                \pnoutfrom{R2.-140}[P]{$x$}
+                \pnoutfrom{R2.-40}{Δ}
+                \pncut{nP,P}}
+            }
+            &
+            \mathsf{N}(\mathfrak{S}_1) ∣ \mathsf{N}(\mathfrak{S}_2)
+            \\
+            %%% tensor %%%
+            \makecell[r]{
+            \pnet{
+                \pnsomenet[R1]{\scriptsize$\mathfrak{S}_1$}{3cm}{1cm}
+                \pnsomenet[R2]{\scriptsize$\mathfrak{S}_2$}{3cm}{1cm}[at (4,0)]
+                \pnoutfrom{R1.-140}{Γ}
+                \pnoutfrom{R1.-40}[N1]{$x_1$}
+                \pnoutfrom{R2.-140}[N2]{$x_2$}
+                \pnoutfrom{R2.-40}{Δ}
+                \pntensor{N1,N2}{$x$}}
+            }
+            &
+            \otimes(x; x_1, x_2) ∣ \mathsf{N}(\mathfrak{S}_1) ∣ \mathsf{N}(\mathfrak{S}_2)
+            \\
+            %%% parr %%%
+            \makecell[r]{
+            \pnet{
+                \pnsomenet[R]{\scriptsize$\mathfrak{S}$}{3cm}{1cm}
+                \pnoutfrom{R.-150}{Γ}
+                \pnoutfrom{R.-90}[P1]{$x_1$}
+                \pnoutfrom{R.-30}[P2]{$x_2$}
+                \pnparr{P1,P2}{$x$}}
+            }
+            &
+            \parr(x; x_1, x_2) ∣ \mathsf{N}(\mathfrak{S})
+            \\
+            %%% positive shift %%%
+            \makecell[r]{
+            \pnet{
+                \pnsomenet[R]{\scriptsize$\mathfrak{S}$}{3cm}{1cm}
+                \pnoutfrom{R.-140}{Γ}
+                \pnoutfrom{R.-40}[N]{$x_1$}
+                \pnshpos{N}{$x$}}
+            }
+            &
+            \shpos(x; x_1) ∣ \mathsf{N}(\mathfrak{S})
+            \\
+            %% negative shift %%%
+            \makecell[r]{
+            \pnet{
+                \pnsomenet[R]{\scriptsize$\mathfrak{S}$}{3cm}{1cm}
+                \pnoutfrom{R.-140}{Γ}
+                \pnoutfrom{R.-40}[P]{$x_1$}
+                \pnshneg{P}{$x$}}
+            }
+            &
+            \shneg(x; x_1) ∣ \mathsf{N}(\mathfrak{S})
+            \\
+        \end{array}
+    \end{displaymath}
+    To ease the translation, every formula occurrence in the proof net has been replaced by a unique
+    port, except for cut premisses which share the same port. $Γ, Δ$ denote sets of conclusion nodes
+    with free ports as premisses.
+    \caption[]{Translation $\mathsf{N}$ from $\mathsf{MLL}$ paraproof nets to paranets}
+    \label{def:translation-N}
+\end{figure}
+
+\section{Cut elimination}
+
+Once again we need to define a cut elimination, that will this time simulate paraproof structures.
+The formulation is a bit more complex than with c-designs, and relies crucially on an extended
+notion of \emph{structural reduction/congruence} $\rightarrow_ω$ in the style of process calculi,
+defined in figure \ref{def:structred-lnets}.
+
+The equivalent of the key cases for connectives find their formulations in two rules given in the
+definition of cut reduction on paranets $\cutred_{\mathcal{B}}$ (figure \ref{def:cutred-lnets}). The
+idea is to replace cut cells by wires between their premisses, wires being handled by the first rule
+of structural reduction $\rightarrow_ω$. This rule has for sole purpose to execute (linear)
+\emph{substitutions}, and thus plays the same role as the recursive cases and the base case on
+variables of substitution on c-designs. Since axioms are directly represented by wires, they are
+also handled there if needed.
+
+A trickier part of cut elimination is the handling of the daimon. There is also one rule for it in
+$\cutred_{\mathcal{B}}$, but it does not quite work like the one for paraproof structures. Indeed,
+it was possible in the latter to take a global look on the whole paraproof structure and to
+determine which subparaproof structure was interacting with the daimon, making it easy to erase it.
+In a paranet it is way harder to look at the structure globally, in fact we need to follow bound
+ports locally to find our way in the structure. It is therefore preferable to erase the interacting
+paranet step-by-step: this is what the two other rules of structural reduction do with the help of
+the gc node (as in \emph{garbage collection}). Although this technique is already used in the paper
+introducing L-nets \cite{FM05}, we found it independently for paranets.
+
+One last reduction rule in $\cutred_{\mathcal{B}}$ is the one for \emph{boxes}. Boxes can be seen as
+synchronization points, or just as a way to encode sequents into paranets. A box of the form
+$\mathrm{box}(\vec{x};\vec{x}')$ will allow one to gather all conclusions of a paranet in its
+premisses $\vec{x}'$, and to output each $\vec{x}'_i$ as a conclusion $\vec{x}_i$. What the rule
+does is simply connecting $\vec{x}_i$ and $\vec{x}'_i$ with a wire outside the box whenever
+$\vec{x}_i$ is cut with another cell.
+
+All the above base cases of cut reduction are then closed by parallel composition $∣$ and structural
+congruence $\equiv$.
+
+\begin{figure}[h]
+    \begin{mathpar}
+        \prfaxiom{x \leftrightarrow y ∣ \mu \rightarrow_\omega \subst{\mu}{y}{x}} \\
+        \prfaxiom{\mathrm{gc}(\vec{x}; \emptyset) ∣ \mu \rightarrow_\omega \dai(\vec{x}) ∣ \mu} \and
+        \prftree
+            {\vec{y} ∩ \vec{y}' \not= \emptyset}
+            {\mathrm{gc}(\vec{x}; \vec{y}) ∣ C(\vec{y}'; \vec{z}) ∣ \mu
+             \rightarrow_\omega \mathrm{gc}(\vec{x}, \vec{y}' \setminus \vec{y}; \vec{y} \setminus \vec{y}', \vec{z}) ∣ \mu}
+    \end{mathpar}
+    $C$ denotes any cell constructor, and $\subst{\mu}{y}{x}$ is $\mu$ where the only occurrence of $x$
+    has been replaced by $y$.
+    \caption[]{Structural reduction $\rightarrow_\omega$ of paranets}
+    \label{def:structred-lnets}
+\end{figure}
+
+\begin{figure}[h]
+    \begin{mathpar}
+        \prftree
+            {\vec{x} ∩ \vec{y} = x}
+            {\dai(\vec{x}) ∣ C(\vec{y}; \vec{z}) \cutred_{\mathcal{B}} \mathrm{gc}(\vec{x} \setminus x, \vec{y} \setminus x; \vec{z})} \\
+        \prftree
+            {\vec{x} \cap \vec{y} = \vec{x}_i}
+            {\mathrm{box}(\vec{x}; \vec{x}') ∣ C(\vec{y}; \vec{z}) \cutred_{\mathcal{B}} \vec{x}'_i \leftrightarrow \vec{x}_i ∣ \mathrm{box}(\vec{x} \setminus \vec{x}_i; \vec{x}' \setminus \vec{x}'_i) ∣ C(\vec{y}; \vec{z})} \\
+        \prfaxiom{\otimes(x; y_1, y_2) ∣ \parr(x; z_1, z_2) \cutred_{\mathcal{B}} y_1 \leftrightarrow z_1 ∣ y_2 \leftrightarrow z_2} \\
+        \prfaxiom{\shpos(x; y) ∣ \shneg(x; z) \cutred_{\mathcal{B}} y \leftrightarrow z} \\
+        \prftree
+            {\mu \cutred_{\mathcal{B}} \mu'}
+            {\mu ∣ \nu \cutred_{\mathcal{B}} \mu' ∣ \nu}
+        \and
+        \prftree
+            {\mu \equiv \mu'}
+            {\mu' \cutred_{\mathcal{B}} \nu'}
+            {\nu' \equiv \nu}
+            {\mu \cutred_{\mathcal{B}} \nu}
+    \end{mathpar}
+    $C$ denotes any cell constructor, and $\equiv$ is the reflexive, symmetric and transitive
+    closure of $\rightarrow_\omega$.
+    \caption[]{Cut reduction $\cutred_{\mathcal{B}}$ of paranets}
+    \label{def:cutred-lnets}
+\end{figure}
+
+\chapter{Desequentialization of terms}
+\label{sec:desequentialization-of-terms}
+
+In this last section, we define a two-step \emph{desequentialization} function, that first
+translates multiplicative c-designs into boxed paranets with the same computational behavior,
+and then does the desequentialization by simply removing boxes.
+
+The translation $\mathcal{B}$ from c-designs to boxed paranets is given in figure
+\ref{def:translation-B}. The idea is simply to put a box at the end of the translation of each
+subterm, the latter being done by associating each action to its corresponding cell. The definition
+looks a bit complicated because of the bureaucratic management of ports, which must satisfy
+freshness, order and arity conditions.
+
+As for the actual desequentialization through removal of boxes, we give two variants in figure
+\ref{def:deseq-lnets}: the first one, $\mathsf{deseq}^n_μ$, simply removes entire boxes in one go;
+while the second one, $\mathsf{deseq}^1_μ$, is more fine-grained in that it proceeds wire by wire.
+We could consider these respectively as "big-step" and "small-step" variants on desequentialization,
+and their properties with respect to other rewriting relations such as cut reduction might
+constitute an interesting open research area.
+
+\begin{figure}[h]
+    \begin{align*}
+        \mathsf{deseq}_\mu^n(\mathrm{box}(x_1, \ldots, x_n; x_1', \ldots, x_n') ∣ \mu) &=
+            \subst{\subst{\mu}{x_1}{x_1'}\ldots}{x_n}{x_n'} \\
+        \mathsf{deseq}_\mu^1(\mathrm{box}(x_1, \ldots, x_n; x_1', \ldots, x_n') ∣ \mu) &=
+        \begin{cases}
+            \subst{\mu}{x_1}{x_1'} & \text{if $n = 1$} \\
+            \mathrm{box}(x_2, \ldots, x_n; x_2', \ldots, x_n') ∣ \subst{\mu}{x_1}{x_1'}
+            & \text{if $n > 1$}
+        \end{cases} \\
+    \end{align*}
+    \caption[]{Desequentialization of boxed paranets}
+    \label{def:deseq-lnets}
+\end{figure}
+
+\begin{figure}[h]
+    \begin{displaymath}
+        \setcellgapes{8pt}
+        \makegapedcells
+        \begin{array}{r@{\qquad \mapsto \qquad}l@{\quad}l}
+            % daimon %
+            \makecell[r]{\dai(\vec{x})} &
+            \mathrm{box}(\vec{x}; \vec{x}') ∣ \dai(\vec{x}') &
+            \text{with $\vec{x}' = \mathsf{fresh}(|\vec{x}|)$}
+            \\
+            % positive shift %
+            N_0 \cutbar \shpos(N_1) &
+            \makecell[l]{
+                \mathrm{box}(\vec{x_0}, \vec{x_1}; \\
+                \mathsf{fp}(μ_0) \setminus x_0, \\
+                \mathsf{fp}(μ_1) \setminus x_1) ∣ \\
+                μ_0 ∣ \shpos(x_0; x_1) ∣ μ_1
+            } &
+            \makecell[l]{
+                \text{with} \\
+                \text{$μ_0 = B(N_0, x_0)$,} \\
+                \text{$μ_1 = B(N_1, x_1)$,} \\
+                \text{$\vec{x_0} = \mathsf{fresh}(|\mathsf{fp}(μ_0)| - 1)$,} \\
+                \text{$\vec{x_1} = \mathsf{fresh}(|\mathsf{fp}(μ_1)| - 1)$,} \\
+                \text{$x_0, x_1$ fresh}
+            }
+            \\
+            % tensor %
+            N_0 \cutbar \otimes(N_1, N_2) &
+            \makecell[l]{
+                \mathrm{box}(\vec{x_0}, \vec{x_1}, \vec{x_2}; \\
+                \mathsf{fp}(μ_0) \setminus x_0, \\
+                \mathsf{fp}(μ_1) \setminus x_1, \\
+                \mathsf{fp}(μ_2) \setminus x_2) ∣ \\
+                μ_0 ∣ \otimes(x_0; x_1, x_2) ∣ μ_1 ∣ μ_2
+            } &
+            \makecell[l]{
+                \text{with} \\
+                \text{$μ_0 = B(N_0, x_0)$,} \\
+                \text{$μ_1 = B(N_1, x_1)$,} \\
+                \text{$μ_2 = B(N_2, x_2)$,} \\
+                \text{$\vec{x_0} = \mathsf{fresh}(|\mathsf{fp}(μ_0)| - 1)$,} \\
+                \text{$\vec{x_1} = \mathsf{fresh}(|\mathsf{fp}(μ_1)| - 1)$,} \\
+                \text{$\vec{x_2} = \mathsf{fresh}(|\mathsf{fp}(μ_2)| - 1)$,} \\
+                \text{$x_0, x_1, x_2$ fresh}
+            }
+            \\
+            % axiom %
+            x\ ,\ z &
+            % \mathrm{ax}(z, z') &
+            % \text{with $z'$ fresh}
+            \mathrm{box}(x, z; z', z') &
+            \text{with $z'$ fresh}
+            \\
+            % negative shift %
+            \shneg(x).P\ ,\ z &
+            \makecell[l]{
+                \mathrm{box}(z, \vec{x}; z', \mathsf{fp}(μ) \setminus x) ∣ \\
+                \shneg(z'; x) ∣ μ
+            } &
+            \makecell[l]{
+                \text{with} \\
+                \text{$μ = B(P)$,} \\
+                \text{$\vec{x} = \mathsf{fresh}(|\mathsf{fp}(μ)| - 1)$,} \\
+                \text{$z'$ fresh}
+            }
+            \\
+            % parr %
+            \parr(x_1, x_2).P\ ,\ z &
+            \makecell[l]{
+                \mathrm{box}(z, \vec{x}; z', \mathsf{fp}(μ) \setminus \{x_1, x_2\}) ∣ \\
+                \parr(z'; x_1, x_2) ∣ μ
+            } &
+            \makecell[l]{
+                \text{with} \\
+                \text{$μ = B(P)$,} \\
+                \text{$\vec{x} = \mathsf{fresh}(|\mathsf{fp}(μ)| - 2)$,} \\
+                \text{$z'$ fresh}
+            }
+            \\
+        \end{array}
+    \end{displaymath}
+    $\mathsf{fresh}(n)$ denotes a set of $n$ fresh ports, with ports being considered fresh when
+    they occur neither as variables in the term being translated, nor in the translations of its
+    subterms.\\[2mm]
+    % $\mathsf{fp}(\mu)$ denotes the set of free ports of $\mu$, that is ports occuring exactly once
+    % in $\mu$.
+    \caption[]{Translation $\mathsf{B}(P)/\mathsf{B}(N, z)$ from multiplicative c-designs $\mathcal{D}$ to boxed paranets $\mathcal{B}$}
+    \label{def:translation-B}
+\end{figure}
+
+\section{Static correction}
+
+To ensure the \emph{static correctness} of our desequentialization procedure, we would like to prove
+that the following diagram commutes:
+
+\begin{mathpar}
+    \begin{tikzcd}[row sep=large, column sep=large]
+        \mathsf{MLL}\dai \arrow[rr, "\mathsf{deseq}_\pi"]\arrow[d, "\mathsf{D}"] & & \mathsf{PN}_{\mathsf{MLL}\dai} \arrow[d, "\mathsf{N}"] \\
+        \mathcal{D} \arrow[r, "\mathsf{B}"] & \mathcal{B} \arrow[r, "\mathsf{deseq}_μ"] & \mathcal{N} \\
+    \end{tikzcd}
+\end{mathpar}
+
+In the diagram, $\mathsf{MLL}\dai$, $\mathsf{PN}_{\mathsf{MLL}\dai}$ and $\mathcal{N}$ denote
+respectively the sets of sequent calculus paraproofs, paraproof nets, and paranets without boxes.
+Commutativity of the diagram would ensure that our term syntaxes and their desequentialization
+simulate correctly the graphical syntaxes for paraproofs, as well as their desequentialization.
+
+\section{Dynamic correction}
+
+To ensure the \emph{dynamic correctness} of our desequentialization procedure, we would like to
+prove that the following diagram commutes:
+
+\begin{mathpar}
+    \begin{tikzcd}[row sep=large, column sep=large]
+        \mathcal{D} \arrow[r, "\mathsf{B}"]\arrow[d, "\mathsf{\cutred_{\mathcal{D}}}"] & \mathcal{B} \arrow[r, "\mathsf{deseq}_μ"]\arrow[d, "\mathsf{\cutred_{\mathcal{B}}}"] & \mathcal{N} \arrow[d, "\mathsf{\cutred_{\mathcal{B}}}"] \\
+        \mathcal{D} \arrow[r, "\mathsf{B}"] & \mathcal{B} \arrow[r, "\mathsf{deseq}_μ"] & \mathcal{N} \\
+    \end{tikzcd}
+\end{mathpar}
+
+Commutativity of the diagram would ensure that desequentialization does not interfere with cut
+elimination, and vice-versa.
+
+\chapter*{Conclusion}
+\addcontentsline{toc}{chapter}{Conclusion}
+
+In this article, we have introduced and compared many different proof systems of multiplicative
+linear logic, each having a different take on sequentiality and interactivity. Thanks to the
+Curry-Howard isomorphism, it is indeed possible to study these systems for their computational,
+rather than logical properties. The ultimate goal was to provide a term syntax for L-nets, a game
+model of concurrent computation which showcases at the same time interactive and non-sequential
+features.
+
+This goal was in fact quite ambitious, and even though we restricted ourselves to the multiplicative
+fragment of linear logic, we could not afford to make rigorous proofs ensuring the correctness of
+the definitions we introduced for our two syntaxes. So a first line of future research would be in
+actually checking the correctness of these definitions.
+
+Once we have made sure that our syntaxes formalize correctly the models of computation that we want
+to study, a second line of research would be in importing definitions and theorems from the
+"graphical" setting to our syntaxes. Typically it would be interesting to see if the correctness
+criterions of paraproof structures can be expressed in the setting of paranets.
+
+Finally, the natural continuation of our work would be to extend the syntaxes to the additive
+fragment of linear logic, which is present in L-nets. This extension should not be too difficult,
+in that paranets are already partially sequential and interactive in nature: this would only be a
+matter of abstracting away from logical rules, and embracing the fully abstract nature of L-nets.
+
+% \section*{Future work}
+
+% \subsection*{In the concrete setting}
+
+% \begin{itemize}
+%     \item A (non-deterministic) sequentialization procedure on the term syntax
+%     \item A proof that $\mathsf{deseq}(\mathsf{seq}(\mu)) = \mu$
+%     \item (?) A translation of a correctness criterion for $\textsf{MLL}$ paraproof nets into the term
+%         syntax
+% \end{itemize}
+
+% \subsection*{In the abstract setting}
+
+% \begin{itemize}
+%     \item Two inverse bijections between L-nets and abstract infinitary boxed paraproof nets, that
+%         can trivially be extended to the term syntax
+%     \item A desequentialization procedure on the term syntax
+%     \item A (non-deterministic) sequentialization procedure on the term syntax
+%     \item A proof that $\mathsf{deseq}(\mathsf{seq}(\mu)) = \mu$
+%     \item A translation of a correctness criterion for L-nets into the term syntax
+% \end{itemize}
+
+\bibliographystyle{amsalpha}
+\bibliography{main}
+
+\end{document}

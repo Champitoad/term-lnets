@@ -1,0 +1,896 @@
+\documentclass[usenames,dvipsnames]{beamer}
+\usetheme{CambridgeUS}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{unicode-math}
+\usepackage{mathtools}
+\usepackage{mathpartir,proof}
+\usepackage{prftree}
+\usepackage{cmll}
+\usepackage{tabu}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{pn}
+\usepackage{makecell}
+\usepackage{tikz-cd}
+\usepackage{pbox}
+\usepackage{adjustbox}
+
+% \includeonlyframes{current}
+
+% \setbeameroption{show notes}
+
+\graphicspath{ {figures/} }
+\useinnertheme{rectangles}
+\setbeamertemplate{blocks}[default]
+
+% More vertical spacing in tabu lines
+\tabulinesep=3mm
+
+\prflineextra=0em
+\prflinepadbefore=0.5ex
+\prflinepadafter=0.5ex
+\prfrulenameskip=0.5em
+
+\newcolumntype{L}[1]{>{\raggedright\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{C}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+
+\newcommand{\lto}{\Rightarrow}
+\newcommand{\lequiv}{\Leftrightarrow}
+\newcommand{\lolli}{\multimap}
+\newcommand{\dai}{✠}
+\newcommand{\seq}{\vdash}
+\newcommand{\irule}[1]{\footnotesize$#1$}
+\newcommand{\iruleL}[1]{\irule{{#1}\seq}}
+\newcommand{\iruleR}[1]{\irule{\seq{#1}}}
+\newcommand{\cutbar}{\mathbin{\|}}
+\newcommand{\cutred}{\rightsquigarrow}
+
+\AtBeginDocument{% to do this after unicode-math has done its work
+  \renewcommand{\setminus}{\mathbin{\backslash}}
+}
+\renewcommand{\b}[1]{\overline{#1}}
+
+\title[Travail de Recherche Encadré]{Towards a term syntax for L-nets}
+% \subtitle{Jean-Yves Girard}
+\author{Pablo Donato}
+\institute[]{Université Paris Diderot}
+\date{\today}
+\subject{Logic and Computer Science}
+
+\setcounter{tocdepth}{1}
+% \AtBeginSection[]
+% {
+%     \begin{frame}
+%         \frametitle{Table of contents}
+%         \tableofcontents[currentsection]
+%     \end{frame}
+% }
+
+\begin{document}
+
+\begin{frame}
+    \titlepage
+    \vspace{-2em}
+    \center
+    {\small Encadré par Alexis Saurin}
+\end{frame}
+
+\section*{Introduction}
+
+\begin{frame}
+    \frametitle{Curry-Howard isomorphism}
+    \begin{center}
+        \begin{tabu}{>{\bf\color{red}}c@{$\qquad \Longleftrightarrow \qquad$}>{\bf\color{blue}}c}
+            proof & program \\
+            formula & type \\
+            normalization/cut elimination & evaluation/execution
+        \end{tabu}
+    \end{center}
+    \begin{itemize}
+        \setlength\itemsep{1em}
+        % \item Relates logical \textcolor{red}{\textbf{proofs}} with (functional)
+        % \textcolor{blue}{\textbf{programs}}
+        % \item The proven \textcolor{red}{\textbf{formula}} corresponds to the program's
+        % \textcolor{blue}{\textbf{type}}
+        % \item Proof \textbf{\textcolor{red}{normalization}} (aka {\bf \color{red} cut elimination}) corresponds to program \textbf{\textcolor{blue}{execution}}
+        \item Initially discovered for \textbf{\textcolor{red}{minimal intuitionistic}} natural
+        deduction and \textbf{\textcolor{blue}{simply-typed $\lambda$-calculus}} (Howard, 1969)
+        \item Extended to \textbf{\textcolor{red}{2nd-order intuitionistic}} natural deduction and
+        \textbf{\textcolor{blue}{polymorphic $\lambda$-calculus/System F}} (Girard-Reynold, 1972)
+    \end{itemize}
+    % \begin{itemize}
+    %     \setlength\itemsep{1em}
+    %     \item Discovered in the 80s by J.-Y. Girard
+    %     \item Usually presented as a "logic of resources"
+    % \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Motivations}
+    \begin{center}
+    \adjustbox{height=0.45\textheight,keepaspectratio}{
+        \begin{tikzcd}[row sep=2em, column sep=2em, math mode=false]
+            & \parbox{2.5cm}{\centering System F\\\scriptsize (Girard, 1972)} \arrow[d] & & \\
+            \parbox{2.5cm}{\centering \bf Proof nets\\\scriptsize (Girard, 1987)} \arrow[ddr] \arrow[ddddrr, Rightarrow, bend right] & \parbox{2.5cm}{\centering \bf Linear Logic\\\scriptsize (Girard, 1987)} \arrow[l, Rightarrow]\arrow[dr] \arrow[rrddd, Rightarrow, bend left] & & \\
+            & & \parbox{2.5cm}{\centering Ludics\\\scriptsize (Girard, 2001)} \arrow[dl]\arrow[ddr] & \\
+            & \parbox{2.5cm}{\centering L-nets\\\scriptsize(FMC, 2005)} \arrow[ddr] & & \\
+            & & & \parbox{2.5cm}{\centering \bf c-designs\\\scriptsize (Terui, 2011)} \arrow[dl, Rightarrow] \\
+            & & \bf This work! & \\
+        \end{tikzcd}
+        % \begin{tikzcd}[row sep=2em, column sep=2em, math mode=false]
+        %     System F \arrow[r] & 
+        %     \parbox{3cm}{\centering {\bf\color{red} Linear Logic\\{\scriptsize (Girard, 1987)}}} \arrow[r, Rightarrow, red]\arrow[ddr] &
+        % \end{tikzcd}
+    }
+    \end{center}
+    % \begin{itemize}
+    %     \setlength\itemsep{1.5em}
+    %     \item 2nd order intuitionistic logic $\leftrightarrow$ polymorphic
+    %     $\lambda$-calculus
+    %     \item Disjunction property for $\oplus$, involutive negation $\cdot^\bot$
+    %     \item Unordered proofs
+    %     \item Program vs. environment
+    % \end{itemize}
+\end{frame}
+
+% \begin{frame}
+%     \frametitle{L-nets}
+%     \fontsize{11pt}{7.2}\selectfont
+%     \vspace{1em}
+%     \begin{itemize}
+%         \setlength\itemsep{2em}
+%         \item A model of \textbf{interactive}, \textbf{concurrent} computation, introduced in 2005 by C.
+%         Faggian and F. Maurel.
+%         \item L-nets can be seen as \textbf{untyped}, \textbf{partially sequential} proofs of linear
+%         logic
+%         \item Our goal will be to introduce a \textbf{term syntax} equivalent to the graph
+%         theoretical formulation of L-nets
+%     \end{itemize}
+%     % \begin{block}{Proof nets}
+%     %     \begin{itemize}
+%     %         \item A \textbf{parallel} syntax for the proofs of linear logic
+%     %         \item Graph-theoretic formulation that forgets some "irrelevant" order of inferences
+%     %     \end{itemize}
+%     % \end{block}
+%     % \begin{block}{Designs}
+%     %     \begin{itemize}
+%     %         \item The main objects of \textbf{ludics}, a foundational theory of logic
+%     %         \item \textbf{Abstract} proofs where formulae are replaced by their \emph{address}
+%     %         \item \textbf{Sequential} and \textbf{interactive} by nature
+%     %     \end{itemize}
+%     % \end{block}
+%     % \vspace{3mm}
+%     % \center
+%     % L-nets = abstract proof nets = parallel designs
+% \end{frame}
+
+\section{Multiplicative linear logic}
+
+\begin{frame}[fragile, label=current]
+    \frametitle{Multiplicative linear logic}
+    \color{black!25}
+    \begin{center}
+    \adjustbox{height=0.45\textheight,keepaspectratio}{
+        \begin{tikzcd}[row sep=2em, column sep=2em, math mode=false]
+            & \parbox{2.5cm}{\centering System F\\\scriptsize (Girard, 1972)} \arrow[d] & & \\
+            \color{black!0} \parbox{2.5cm}{\centering \bf \color{black} Proof nets\\\scriptsize (Girard, 1987)} \arrow[ddr] \arrow[ddddrr, Rightarrow, bend right] & \color{black!0} \parbox{2.5cm}{\centering \bf \color{black} Linear Logic\\\scriptsize (Girard, 1987)} \arrow[l, Rightarrow, black]\arrow[dr] \arrow[rrddd, Rightarrow, bend left] & & \\
+            & & \parbox{2.5cm}{\centering Ludics\\\scriptsize (Girard, 2001)} \arrow[dl]\arrow[ddr] & \\
+            & \parbox{2.5cm}{\centering L-nets\\\scriptsize(FMC, 2005)} \arrow[ddr] & & \\
+            & & & \parbox{2.5cm}{\centering \bf c-designs\\\scriptsize (Terui, 2011)} \arrow[dl, Rightarrow] \\
+            & & \bf This work! & \\
+        \end{tikzcd}
+    }
+    \end{center}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Linear logic}
+    \small
+    \begin{align*}
+        A ~::=~&{\color{red} X} \mid {\color{red} X^{\bot}} \mid &\quad \text{(Atoms)}\\
+        &\textbf{1} \mid \bot \mid {\color{red} A \otimes A} \mid {\color{red} A \parr A} \mid &\quad \text{\color{red} (Multiplicatives)}\\
+        &\textbf{0} \mid \top \mid A \oplus A \mid A \with A \mid &\quad \text{(Additives)}\\
+        &\oc A \mid \wn A &\quad \text{(Exponentials)}\\
+    \end{align*}
+    \vspace{-3em}
+    \begin{itemize}
+        \setlength\itemsep{0.75em}
+        \item Fine management of formulae as \textbf{resources}
+        \item Can encode both {\bf\color{violet} classical} and {\bf\color{orange} intuitionistic} logic
+        \item Exhibits features of both worlds:
+        \begin{itemize}
+            \item {\bf\color{orange} Disjunction property} for $\oplus$
+            \item {\bf\color{violet} Involutive negation} $\cdot^\bot$:
+            \large
+            $$A = A^{\bot\bot}$$
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\subsection{A focalized sequent calculus for $\mathsf{MLL}$}
+
+\begin{frame}
+    \frametitle{Sequents}
+    \begin{itemize}
+        \setlength\itemsep{1em}
+        \item Formulae are generated by the following \textbf{polarized} grammar:
+        \begin{align*}
+            P &::= X ∣ N \otimes N ∣ \shpos N &\quad \text{\bf(positive)} \\
+            N &::= X^\bot ∣ P \parr P ∣ \shneg P &\quad \text{\bf(negative)}
+        \end{align*}
+        \item Negation defined by \textbf{De Morgan} equations on dual connectives:
+        \begin{align*}
+            (X)^\bot &= X^\bot & (N_1 \otimes N_2)^\bot &= N_1^\bot \parr N_2^\bot & (\shpos N)^\bot &= \shneg N^\bot \\
+            (X^\bot)^\bot &= X & (P_1 \parr P_2)^\bot &= P_1^\bot \otimes P_2^\bot & (\shneg P)^\bot &= \shpos P^\bot
+        \end{align*}
+        \item A \textbf{focalized sequent} is a multiset of formulae of the form:
+        $$\seq A, P_1, \ldots, P_n \quad \text{also written} \quad \seq A, Γ$$
+        % \item A \textbf{sequent} is simply a list of formulae, written:
+        % $$\seq A_1, \ldots, A_n \quad \text{or} \quad \seq Γ$$
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Proofs}
+    \begin{itemize}
+        \setlength\itemsep{1em}
+        \item A \textbf{proof} of a sequent is just a \textbf{derivation tree}
+        % $$\prftree{\prfsummary{\seq \ldots}}{\ldots}{\prfsummary{\seq \ldots}}{\seq A, Γ}$$
+        \item Leaves are \textbf{axiom} rules:
+        \vspace{1em}
+        $$\prfbyaxiom{\irule{\mathrm{ax}}}{\seq P^\bot, P}$$
+        \item Nodes are either \textbf{cut} rules or \textbf{logical} rules:
+        \vspace{1em}
+        $$
+        \prftree[r]{\irule{\mathrm{cut}}}
+            {\seq P^\bot, Γ}
+            {\seq P, Δ}
+            {\seq Γ, Δ}
+        $$
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Logical rules}
+    They define how to prove \textbf{compound} formulae:
+    \vspace{2em}
+    \begin{mathpar}
+        \prftree[r]{\irule{\otimes}}
+            {\seq N_1, Γ}
+            {\seq N_2, Δ}
+            {\seq N_1 \otimes N_2, Γ, Δ}
+        \and
+        \prftree[r]{\irule{\parr}}
+            {\seq P_1, P_2, Γ}
+            {\seq P_1 \parr P_2, Γ}
+        \\
+        \prftree[r]{\irule{\shpos}}
+            {\seq N, Γ}
+            {\seq \shpos N, Γ}
+        \and
+        \prftree[r]{\irule{\shneg}}
+            {\seq P, Γ}
+            {\seq \shneg P, Γ}
+    \end{mathpar}
+\end{frame}
+
+\subsection{Cut elimination}
+
+\begin{frame}
+    \frametitle{Cut elimination}
+    \begin{itemize}
+        \setlength\itemsep{1em}
+        \item A \textbf{rewriting} procedure that \emph{eliminates} cut rules from proofs
+        \item Through Curry-Howard, can be seen as an \textbf{evaluation strategy}
+        \item Defined as the iteration of \textbf{cut reduction} steps:
+        \vspace{1em}
+        $$
+        \vcenter{
+        \prftree[r]{\irule{\mathrm{cut}}}
+            {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq P^\bot, P}}
+            {\prfsummary[$π$]{\seq P, Γ}}
+            {\seq P, Γ}
+        }
+        \quad \rightsquigarrow \quad
+        \vcenter{
+        \prfsummary[$π$]{\seq P, Γ}
+        }
+        $$
+    \end{itemize}
+\end{frame}
+
+% \begin{frame}
+%     \frametitle{Composition}
+%     Reveals the role of the cut rule as a mean to \textbf{compose} proofs, in the same way that
+%     application is used to compose functions.
+%     \vspace{1em}
+%     {
+%     \fontsize{7pt}{7.2}\selectfont
+%     $$
+%     \vcenter{
+%     \prftree[r]{\irule{\mathrm{cut}}}
+%         {\prftree[r]{\irule{\parr}}
+%             {\prfsummary[$π_1$]{\seq P_1, P_2, Γ}}
+%             {\seq P_1 \parr P_2, Γ}}
+%         {\prftree[r]{\irule{\otimes}}
+%             {\prfsummary[$π_2$]{\seq P_1^\bot, Δ}}
+%             {\prfsummary[$π_3$]{\seq P_2^\bot, Σ}}
+%             {\seq P_1^\bot \otimes P_2^\bot, Δ, Σ}}
+%         {\seq Γ, Δ, Σ}
+%     }
+%     \quad \rightsquigarrow \quad
+%     \vcenter{
+%     \prftree[r]{\irule{\mathrm{cut}}}
+%         {\prftree[r]{\irule{\mathrm{cut}}}
+%             {\prfsummary[$π_1$]{\seq P_1, P_2, Γ}}
+%             {\prfsummary[$π_2$]{\seq P_1^\bot, Δ}}
+%             {\seq P_2, Γ, Δ}}
+%         {\prfsummary[$π_3$]{\seq P_2^\bot, Σ}}
+%         {\seq Γ, Δ, Σ}
+%     }
+%     $$
+%     }
+%     Though the notation is not very practical for programming...
+% \end{frame}
+
+\begin{frame}
+    \frametitle{Permutation of rules}
+    \begin{itemize}
+        \setlength\itemsep{1em}
+        \item Cut elimination \textbf{terminates}
+        \item But it is not \textbf{confluent}
+        \item This gives rise to artificial \textbf{orderings} on rules:
+        \begin{mathpar}
+            \prftree[r]{\irule{\parr}}
+                {\prftree[r]{\irule{\otimes}}
+                    {\prfsummary[$π_1$]{\seq A, C, D, Γ}}
+                    {\prfsummary[$π_2$]{\seq B, Δ}}
+                    {\seq A \otimes B, C, D, Γ, Δ}}
+                {\seq A \otimes B, C \parr D, Γ, Δ}
+            \and
+            \prftree[r]{\irule{\otimes}}
+                {\prftree[r]{\irule{\parr}}
+                    {\prfsummary[$π_1$]{\seq A, C, D, Γ}}
+                    {\seq A, C \parr D, Γ}}
+                {\prfsummary[$π_2$]{\seq B, Δ}}
+                {\seq A \otimes B, C \parr D, Γ, Δ}
+        \end{mathpar}
+    \end{itemize}
+\end{frame}
+
+\subsection{Proof structures}
+
+\begin{frame}
+    \frametitle{Proof structures}
+    \begin{itemize}
+        \setlength\itemsep{1em}
+        \item To \emph{equate} proofs which only differ by permutation of rules, Girard devised a
+        new syntax of \textbf{proof structures}, which are \textbf{graphs} rather than
+        \textbf{trees}
+        \item The \textbf{desequentialization} function $\mathsf{deseq}_π$ maps sequent calculus
+        proofs to their equivalent proof structures
+        \item The two preceding examples collapse to:
+        \vspace{1em}
+        \begin{proofnet}
+            \pnsomenet[R1]{\tiny$\mathsf{deseq}_π(π_1)$}{3cm}{1cm}
+            \pnsomenet[R2]{\tiny$\mathsf{deseq}_π(π_2)$}{3cm}{1cm}[at (4,0)]
+            \pnoutfrom{R1.-150}{Γ}
+            \pnoutfrom{R1.-120}[C]{$C$}
+            \pnoutfrom{R1.-60}[D]{$D$}
+            \pnoutfrom{R1.-30}[A]{$A$}
+            \pnoutfrom{R2.-140}[B]{$B$}
+            \pnoutfrom{R2.-40}{Δ}
+            \pnparr{C,D}{$C \parr D$}
+            \pntensor{A,B}{$A \otimes B$}
+        \end{proofnet}
+    \end{itemize}
+\end{frame}
+
+\subsection{Proof nets}
+
+% \begin{frame}
+%     \frametitle{Proof nets}
+%     \begin{itemize}
+%         \setlength\itemsep{2em}
+%         \item \textbf{Proof nets} are the image of desequentialization $\mathsf{deseq}_π$
+%         \item Equivalently, they are the \textbf{sequentializable} proof structures
+%         \item Then a natural question arises:
+%         \vspace{1em}
+%         \center
+%         {\large Are \emph{all} proof structures sequentializable?}\\[2mm]
+%         {\scriptsize Spoiler: \textbf{no}!}
+%     \end{itemize}
+% \end{frame}
+
+\begin{frame}
+    \frametitle{Proof nets}
+    \begin{itemize}
+        \setlength\itemsep{1em}
+        \item \textbf{Proof nets} are the image of desequentialization $\mathsf{deseq}_π$
+        \item Equivalently, they are the \textbf{sequentializable} proof structures
+        \item \textbf{Cut elimination} on proof nets \textbf{terminates} and is \textbf{confluent}
+        \item \textbf{Not all} proof structures are sequentializable:
+        \vspace{-3em}
+        $$
+        \pnet{
+            \pnformulae{
+                \pnf[nP]{$P^\bot$}~~\pnf[P]{$P$}
+            }
+            \pnaxiom{nP,P}
+            \pncut{nP,P}
+        }
+        $$
+    \end{itemize}
+    \vspace{-2em}
+    \centering \textbf{Contradicts} termination of cut elimination!
+\end{frame}
+
+\subsection{Correctness}
+
+\begin{frame}
+    \frametitle{Correctness criterions}
+    A way of checking the \textbf{correctness} of a proof structure without having to guess one if
+    its underlying sequent calculus proofs!
+    \vspace{1em}
+    \begin{theorem}[Sequentialization]
+        A proof structure $\mathfrak{S}$ is a proof net \emph{iff} it satisfies (all) correctness
+        criterions.
+    \end{theorem}
+    \vspace{1em}
+    \begin{block}{The \textrm{DR} criterion}
+        \vspace{1em}
+        \begin{itemize}
+            \setlength\itemsep{1em}
+            \item A \textbf{switching graph} of $\mathfrak{S}$ is $\mathfrak{S}$ where every
+            $\parr$-node has one of its premisses \emph{erased}
+            \item $\mathfrak{S}$ is \textbf{\textrm{DR}-correct} if all its switching graphs are
+            \textbf{connected} and \textbf{acyclic}
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+% \begin{frame}
+%     % \frametitle{Counter-example $\mathfrak{S}_1$ (the vicious circle)}
+%     \frametitle{Counter-example: the vicious circle}
+%     % \begin{columns}
+%     %     \begin{column}{0.5\textwidth}
+%             $$
+%             \pnet{
+%                 \pnformulae{
+%                     \pnf[nP]{$P^\bot$}~~\pnf[P]{$P$}
+%                 }
+%                 \pnaxiom{nP,P}
+%                 \pncut{nP,P}
+%             }
+%             $$
+%     %     \end{column}
+%     %     \begin{column}{0.5\textwidth}
+%     %         $$
+%     %         \prftree[r]{\irule{\mathrm{cut}}}
+%     %             {\prfbyaxiom{\irule{\mathrm{ax}}}{\seq P^\bot, P}}
+%     %             {\seq}
+%     %         $$
+%     %     \end{column}
+%     % \end{columns}
+%     \begin{itemize}
+%         \item No conclusion = proof of $\seq$
+%         \item Impossible because of cut elimination
+%     \end{itemize}
+% \end{frame}
+
+\begin{frame}[label=current]
+    \frametitle{Examples}
+    \vspace{-2em}
+    \begin{columns}
+        \begin{column}{0.5\textwidth}
+            \only<3->{\color{Green}}
+            \only<1>{
+            $$
+            \pnet{
+                \pnformulae{
+                    \pnf[nP1]{$P^\bot$}~~\pnf[P1]{$P$}~~\pnf[nP2]{$P^\bot$}~~\pnf[P2]{$P$}
+                }
+                \pnaxiom{nP1,P1}
+                \pnaxiom{nP2,P2}
+                \pnparr{P1,P2}{}[2.2][0.5]
+                \pntensor{nP1,nP2}{}[2.2][-0.5]
+            }
+            $$
+            }
+            \only<2>{
+            $$
+            \pnet{
+                \pnformulae{
+                    \pnf[nP1]{$P^\bot$}~~\pnf[P1]{$P$}~~\pnf[nP2]{$P^\bot$}~~\pnf[P2]{$P$}
+                }
+                \pnaxiom{nP1,P1}
+                \pnaxiom{nP2,P2}
+                \pnparr{P1,P2*}{}[2.2][0.5]
+                \pntensor{nP1,nP2}{}[2.2][-0.5]
+            }
+            $$
+            }
+            \only<3->{
+            $$
+            \pnet{
+                \pnformulae{
+                    \pnf[nP1]{$P^\bot$}~~\pnf[P1]{$P$}~~\pnf[nP2]{$P^\bot$}~~\pnf[P2]{$P$}
+                }
+                \pnaxiom{nP1,P1}
+                \pnaxiom{nP2,P2}
+                \pnparr{P1*,P2}{}[2.2][0.5]
+                \pntensor{nP1,nP2}{}[2.2][-0.5]
+            }
+            $$
+            }
+        \end{column}
+        \begin{column}{0.5\textwidth}
+            \only<6->{\color{red}}
+            \only<1-3>{
+            $$
+            \pnet{
+                \pnformulae{
+                    \pnf[nP1]{$P^\bot$}~~\pnf[P1]{$P$}~~\pnf[nP2]{$P^\bot$}~~\pnf[P2]{$P$}
+                }
+                \pnaxiom{nP1,P1}
+                \pnaxiom{nP2,P2}
+                \pnshpos{nP1}[shpos1]{}
+                \pnshpos{nP2}[shpos2]{}
+                \pnparr{shpos1,shpos2}[parr1]{}[1][-0.5]
+                \pnparr{P1,P2}[parr2]{}[2.2][0.5]
+                \pntensor{parr1,parr2}{}
+            }
+            $$
+            }
+            \only<4>{
+            $$
+            \pnet{
+                \pnformulae{
+                    \pnf[nP1]{$P^\bot$}~~\pnf[P1]{$P$}~~\pnf[nP2]{$P^\bot$}~~\pnf[P2]{$P$}
+                }
+                \pnaxiom{nP1,P1}
+                \pnaxiom{nP2,P2}
+                \pnshpos{nP1}[shpos1]{}
+                \pnshpos{nP2}[shpos2]{}
+                \pnparr{shpos1*,shpos2}[parr1]{}[1][-0.5]
+                \pnparr{P1,P2*}[parr2]{}[2.2][0.5]
+                \pntensor{parr1,parr2}{}
+            }
+            $$
+            }
+            \only<5>{
+            $$
+            \pnet{
+                \pnformulae{
+                    \pnf[nP1]{$P^\bot$}~~\pnf[P1]{$P$}~~\pnf[nP2]{$P^\bot$}~~\pnf[P2]{$P$}
+                }
+                \pnaxiom{nP1,P1}
+                \pnaxiom{nP2,P2}
+                \pnshpos{nP1}[shpos1]{}
+                \pnshpos{nP2}[shpos2]{}
+                \pnparr{shpos1,shpos2*}[parr1]{}[1][-0.5]
+                \pnparr{P1*,P2}[parr2]{}[2.2][0.5]
+                \pntensor{parr1,parr2}{}
+            }
+            $$
+            }
+            \only<6>{
+            $$
+            \pnet{
+                \pnformulae{
+                    \pnf[nP1]{$P^\bot$}~~\pnf[P1]{$P$}~~\pnf[nP2]{$P^\bot$}~~\pnf[P2]{$P$}
+                }
+                \pnaxiom{nP1,P1}
+                \pnaxiom{nP2,P2}
+                \pnshpos{nP1}[shpos1]{}
+                \pnshpos{nP2}[shpos2]{}
+                \pnparr{shpos1,shpos2*}[parr1]{}[1][-0.5]
+                \pnparr{P1,P2*}[parr2]{}[2.2][0.5]
+                \pntensor{parr1,parr2}{}
+            }
+            $$
+            }
+            \only<7->{
+            $$
+            \pnet{
+                \pnformulae{
+                    \pnf[nP1]{$P^\bot$}~~\pnf[P1]{$P$}~~\pnf[nP2]{$P^\bot$}~~\pnf[P2]{$P$}
+                }
+                \pnaxiom{nP1,P1}
+                \pnaxiom{nP2,P2}
+                \pnshpos{nP1}[shpos1]{}
+                \pnshpos{nP2}[shpos2]{}
+                \pnparr{shpos1*,shpos2}[parr1]{}[1][-0.5]
+                \pnparr{P1*,P2}[parr2]{}[2.2][0.5]
+                \pntensor{parr1,parr2}{}
+            }
+            $$
+            }
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\section{Towards ludics}
+
+\begin{frame}[fragile, label=current]
+    \frametitle{Towards ludics}
+    \color{black!25}
+    \begin{center}
+    \adjustbox{height=0.45\textheight,keepaspectratio}{
+        \begin{tikzcd}[row sep=2em, column sep=2em, math mode=false]
+            & \parbox{2.5cm}{\centering System F\\\scriptsize (Girard, 1972)} \arrow[d] & & \\
+            \color{black!0} \parbox{2.5cm}{\centering \bf \color{black} Proof nets\\\scriptsize (Girard, 1987)} \arrow[ddr] \arrow[ddddrr, Rightarrow, bend right] & \color{black!0} \parbox{2.5cm}{\centering \bf \color{black} Linear Logic\\\scriptsize (Girard, 1987)} \arrow[l, Rightarrow, black]\arrow[dr] \arrow[rrddd, Rightarrow, bend left, right, black] & & \\
+            & & \parbox{2.5cm}{\centering Ludics\\\scriptsize (Girard, 2001)} \arrow[dl]\arrow[ddr] & \\
+            & \parbox{2.5cm}{\centering L-nets\\\scriptsize(FMC, 2005)} \arrow[ddr] & & \\
+            & & & \color{black!0} \parbox{2.5cm}{\centering \bf \color{black} c-designs\\\scriptsize (Terui, 2011)} \arrow[dl, Rightarrow] \\
+            & & \bf This work! & \\
+        \end{tikzcd}
+    }
+    \end{center}
+\end{frame}
+
+\subsection{The daimon $\dai$}
+
+\begin{frame}
+    \frametitle{\textrm{CP} criterion}
+    \begin{itemize}
+        \setlength\itemsep{1em}
+        \item \textbf{Idea:} $\mathfrak{S}$ proves $A$ if it wins against every
+        \textbf{counterproof}, that is every proof of $A^\bot$
+        \item \textbf{Problem:} Having proofs of $A$ \emph{and} $A^\bot$ would make our logic
+        \textbf{inconsistent}!
+        \item Well, if we can still characterize correct proofs... Let's try a new kind of
+        axiom, the \textbf{daimon} $\dai$:
+        \vspace{-2em}
+        \begin{mathpar}
+            \prfbyaxiom{\irule{\dai}}{\seq P_1, \ldots, P_n}
+            \and
+            \pnet{
+                \pnformulae{
+                    \pnf[P1]{$P_1$}~~\pnf[ldots]{$\ldots$}~~\pnf[Pn]{$P_n$}
+                }
+                \pndaimon{P1,ldots,Pn}
+            }
+        \end{mathpar}
+    \end{itemize}
+\end{frame}
+
+\subsection{Cut elimination}
+
+\begin{frame}
+    \frametitle{Cut elimination}
+    \vspace{-4em}
+    \begin{displaymath}
+        \setcellgapes{8pt}
+        \makegapedcells
+        \begin{array}{r@{\qquad \rightsquigarrow \qquad}l}
+            \makecell[r]{
+                \pnet{
+                    \pnsomenet[R]{\scriptsize$\mathfrak{S}$}{2cm}{1cm}[at (3,1)]
+                    \pnformulae{
+                        \pnf[Γ]{Γ}~~\pnf[P]{$P$}}
+                    \pnoutfrom{R.-140}[nP]{$P^\bot$}
+                    \pnoutfrom{R.-40}[Δ]{Δ}
+                    \pndaimon{Γ,P}
+                    \pncut{P,nP}
+                }
+            }
+            &
+            \makecell[l]{
+                \pnet{
+                    \pnformulae{
+                        \pnf[Γ]{Γ}[at (1,1)]~~\pnf[Δ]{Δ}[at (1,1)]}
+                    \pndaimon{Γ,Δ}
+                }
+            }
+        \end{array}
+    \end{displaymath}
+    \vspace{-2em}
+    \begin{itemize}
+        \setlength\itemsep{1em}
+        \item A proof that uses $\dai$ is called a \textbf{paraproof}
+        % \item Paraproofs \textbf{interact} by cutting their dual conclusions
+        \item $\dai$ \textbf{absorbs} $\mathfrak{S}$ instead of keeping it like $\mathrm{ax}$
+        \item $\mathfrak{S} \perp \mathfrak{S}'$ if cutting their dual conclusions evaluates to
+        $\dai$
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Correctness}
+    % \begin{itemize}
+    %     \item $\mathfrak{S}$ wins its interaction with $\mathfrak{S}'$ if they evaluate to $\dai$
+    %     \item In that case, we say that $\mathfrak{S}$ is \textbf{orthogonal} to $\mathfrak{S}'$
+    %     (written $\mathfrak{S} \perp \mathfrak{S}'$)
+    % \end{itemize}
+    \begin{block}{\textrm{CP} criterion}
+        $\mathfrak{S}$ is \textrm{CP}-correct if for every
+        \textbf{\textcolor{magenta}{counterproof}} $\mathfrak{S'}$, $\mathfrak{S} \perp
+        \mathfrak{S}'$.
+    \end{block}
+    \begin{block}{\textrm{DR} criterion}
+        $\mathfrak{S}$ is \textrm{DR}-correct if for every \textbf{\textcolor{magenta}{switching}}
+        $\mathfrak{S'}$, $\mathfrak{S}'$ connected and acyclic.
+    \end{block}
+    \vspace{1em}
+    In fact, \textrm{DR} is just a \textbf{static} reformulation of \textrm{CP}:
+    \vspace{1em}
+    \begin{itemize}
+        \setlength\itemsep{1em}
+        \item \textbf{Termination} of interaction is replaced by \textbf{acyclicity}
+        \item \textbf{Uniqueness} of result (one $\dai$) is replaced by \textbf{connectedness}
+    \end{itemize}
+
+    % In fact, \textrm{DR} is just \textrm{CP} where \emph{infinite} interaction is avoided by
+    % the \textbf{acyclicity} condition!\\[1em]
+    % \textbf{Connectedness} rejects the \textrm{mix} rule:
+    % $$\prftree[r]{\irule{\mathrm{mix}}}{\seq Γ}{\seq Δ}{\seq Γ,Δ}$$
+\end{frame}
+
+\subsection{Multiplicative c-designs}
+
+% \begin{frame}
+%     \frametitle{Ludics}
+%     \begin{itemize}
+%         \setlength\itemsep{1em}
+%         \item Introduced by Girard (2001) as a foundational theory of logic based on
+%         \textbf{interaction}
+%         \item The main objects, \textbf{designs}, are idealized proofs of linear sequent calculus in
+%         the same way that pure $\lambda$-terms (böhm trees) are idealized proofs of intuitionistic
+%         natural deduction
+%         \item Terui (2011) introduced \textbf{c-designs} as a term syntax for designs, augmented
+%         with \emph{axioms} and \emph{cuts}:
+%         \vspace{1em}
+%         \begin{align*}
+%             P &::= \dai ∣ Ω ∣ N_0 \cutbar \b{a}(\vec{N}) \\
+%             N &::= x ∣ \sum_a{a(\vec{x_a}).P_a}
+%         \end{align*}
+%     \end{itemize}
+% \end{frame}
+
+\begin{frame}
+    \frametitle{Multiplicative c-designs}
+    \begin{align*}
+        P ~&::=~ \dai(\vec{x}) ~∣~ Ω ~∣~ N_0 \cutbar \otimes(N_1, N_2) ~∣~ N_0 \cutbar \shpos(N_1) \\
+        N ~&::=~ x ~∣~ \parr(x_1, x_2).P ~∣~ \shneg(x).P
+    \end{align*}
+    \begin{itemize}
+        \setlength\itemsep{1em}
+        % \item Restriction to the \textbf{multiplicative} fragment by removing additive
+        % superimposition $\sum_a$
+        % \item Abstract \textbf{actions} $a$ replaced by concrete \textbf{connectives} $\otimes,
+        % \parr, \shpos, \shneg$
+        % \item Added \textbf{variables} $\vec{x}$ encoding conclusions of $\dai$
+        \item \textbf{Specialization} of Terui's c-designs, introduced as a \textbf{term syntax} for
+        exporting \textbf{ludics} to computability/complexity theory:
+        $$\mathsf{M} \text{ recognizes } \mathcal{L} \quad \Leftrightarrow \quad \mathfrak{D}_{\mathsf{M}} \perp \mathfrak{D}_{\mathcal{L}}$$
+        \item Used here to encode sequent calculus paraproofs
+        \item \textbf{Co-inductive} definition $\Rightarrow$ might be \textbf{infinite}!
+    \end{itemize}
+\end{frame}
+
+\section{Desequentialization of terms}
+
+\begin{frame}[fragile, label=current]
+    \frametitle{Desequentialization of terms}
+    \color{black!25}
+    \begin{center}
+    \adjustbox{height=0.45\textheight,keepaspectratio}{
+        \begin{tikzcd}[row sep=2em, column sep=2em, math mode=false]
+            & \parbox{2.5cm}{\centering System F\\\scriptsize (Girard, 1972)} \arrow[d] & & \\
+            \color{black!0} \parbox{2.5cm}{\centering \bf \color{black} Proof nets\\\scriptsize (Girard, 1987)} \arrow[ddr] \arrow[ddddrr, Rightarrow, bend right, black] & \color{black!0} \parbox{2.5cm}{\centering \bf \color{black} Linear Logic\\\scriptsize (Girard, 1987)} \arrow[l, Rightarrow, black]\arrow[dr] \arrow[rrddd, Rightarrow, bend left, right, black] & & \\
+            & & \parbox{2.5cm}{\centering Ludics\\\scriptsize (Girard, 2001)} \arrow[dl]\arrow[ddr] & \\
+            & \parbox{2.5cm}{\centering L-nets\\\scriptsize(FMC, 2005)} \arrow[ddr] & & \\
+            & & & \color{black!0} \parbox{2.5cm}{\centering \bf \color{black} c-designs\\\scriptsize (Terui, 2011)} \arrow[dl, Rightarrow, black] \\
+            & & \bf \color{black!0} \color{black} This work! & \\
+        \end{tikzcd}
+    }
+    \end{center}
+\end{frame}
+
+\subsection{Paranets}
+
+\begin{frame}
+    \frametitle{Paranets}
+    \small
+    \tabulinesep=1mm
+    \begin{itemize}
+        \item A term syntax for \textbf{paraproof structures}
+        \item Inspired by the \textbf{differential interaction nets} of D. Mazza (2016)
+        \item A \textbf{cell} is an expression of one of the following forms:\\[5pt]
+        \begin{tabu}{l@{\hspace{1em}}l}
+            {\normalfont \bf daimon:} $\dai(\vec{x})$, \color{violet} $\mathrm{gc}(\vec{x};\vec{y})$ &
+            {\normalfont \bf multiplicative cells:} $\otimes(x; y, z)$, $\parr(x; y, z)$ \\
+            {\normalfont \bf box:} \color{violet} $\mathrm{box}(\vec{x}; \vec{x}')$ &
+            {\normalfont \bf shift cells:} $\shpos(x; y)$, $\shneg(x; y)$
+        \end{tabu}
+        \item \textbf{Ports} $x,y,z$ are \textbf{free} (resp. \textbf{bound}) when they occur
+        \emph{once} (resp. \emph{twice})
+        \item A \textbf{paranet} is a multiset of cells and \textbf{wires} $x \leftrightarrow y$,
+        with multiset union denoted by $\mid$
+    \end{itemize}
+    \begin{center}
+    \begin{tabu}{>{\bf\color{blue}}c@{$\quad \Longleftrightarrow \quad$}>{\bf\color{red}}c}
+        cell & node \\
+        bound port/wire & edge \\
+        free port & conclusion
+    \end{tabu}
+    \end{center}
+\end{frame}
+
+\subsection{Desequentialization}
+
+\begin{frame}[fragile]
+    \frametitle{Desequentialization}
+    This is a \textbf{two-step} procedure:
+    \vspace{1em}
+    \begin{mathpar}
+        \begin{tikzcd}[row sep=large, column sep=large]
+            \mathcal{D} \arrow[r, "\mathsf{B}"] & \mathcal{B} \arrow[r, "\mathsf{deseq}_μ"] & \mathcal{N} \\
+        \end{tikzcd}
+    \end{mathpar}
+    \vspace{-2em}
+    \begin{enumerate}
+        \setlength\itemsep{1em}
+        \item \textbf{Traduction} $\mathsf{B}$ from multiplicative c-designs to paranets
+        \item \textbf{Removal of boxes} through rewriting steps $\mathsf{deseq}_μ$. Two variants:
+        \begin{itemize}
+            \item $\mathsf{deseq}_μ^n$ ("big-step"): remove entire boxes
+            \item $\mathsf{deseq}_μ^1$ ("small-step"): remove wire by wire
+        \end{itemize}
+    \end{enumerate}
+\end{frame}
+
+\subsection{Correction}
+
+\begin{frame}[fragile]
+    \frametitle{Correction}
+    \small
+    \vspace{-2em}
+    \begin{mathpar}
+        \begin{tikzcd}[row sep=large, column sep=large]
+            \mathsf{MLL}\dai \arrow[rr, "\mathsf{deseq}_\pi"]\arrow[d, "\mathsf{D}"] & & \mathsf{PN}_{\mathsf{MLL}\dai} \arrow[d, "\mathsf{N}"] \\
+            \mathcal{D} \arrow[r, "\mathsf{B}"]\arrow[d, "\mathsf{\cutred_{\mathcal{D}}}"] & \mathcal{B} \arrow[r, "\mathsf{deseq}_μ"]\arrow[d, "\mathsf{\cutred_{\mathcal{B}}}"] & \mathcal{N} \arrow[d, "\mathsf{\cutred_{\mathcal{B}}}"] \\
+            \mathcal{D} \arrow[r, "\mathsf{B}"] & \mathcal{B} \arrow[r, "\mathsf{deseq}_μ"] & \mathcal{N} \\
+        \end{tikzcd}
+    \end{mathpar}
+    \vspace{-2em}
+    \begin{itemize}
+        \item \textbf{Static} correction (top): desequentialization of terms simulates desequentialization of proofs
+        \item \textbf{Dynamic} correction (bottom): desequentialization of terms commutes with cut elimination on terms
+    \end{itemize}
+\end{frame}
+
+\section*{Conclusion}
+
+\begin{frame}
+    \frametitle{Conclusion}
+    \begin{block}{What we have done}
+        \begin{itemize}
+        \item Introduced and related sequential, parallel and interactive proof systems for
+        multiplicative linear logic
+        \item Designed and introduced term syntaxes for those systems
+        \item Related the sequential and parallel syntaxes through desequentialization
+        \end{itemize}
+    \end{block}
+    \begin{block}{Future work}
+        \begin{itemize}
+        \item Proving that our desequentialization is correct
+        \item Importing results such as correctness criterions in our syntax
+        \item Extending our syntax to the additive fragment of linear logic, and abstracting
+        away from connectives: this would lead us to L-nets
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Bibliography}
+    \bibliographystyle{amsalpha}
+    \bibliography{main.bib}
+\end{frame}
+
+\end{document}
